@@ -95,6 +95,7 @@ public final class Ast {
 	public int[] e = new int[INITIAL];
 	public int[] next = new int[INITIAL];
 	public int[] at = new int[INITIAL];
+	public byte[] klass = new byte[INITIAL];
 	public String[] str = new String[8];
 	public int strCount;
 	public int size;
@@ -135,6 +136,7 @@ public final class Ast {
 		e = java.util.Arrays.copyOf(e, cap);
 		next = java.util.Arrays.copyOf(next, cap);
 		at = java.util.Arrays.copyOf(at, cap);
+		klass = java.util.Arrays.copyOf(klass, cap);
 	}
 	public int glyph(int cp, int pos) {
 		return add(GLYPH, cp, NONE, NONE, pos);
@@ -229,6 +231,7 @@ public final class Ast {
 		return strCount++;
 	}
 	public void clear() {
+		if (size > 0) java.util.Arrays.fill(klass, 0, size, (byte) 0);
 		size = 0;
 		strCount = 0;
 		root = NONE;
@@ -241,6 +244,7 @@ public final class Ast {
 			e = new int[INITIAL];
 			next = new int[INITIAL];
 			at = new int[INITIAL];
+			klass = new byte[INITIAL];
 		}
 	}
 }
