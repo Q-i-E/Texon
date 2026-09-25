@@ -1,0 +1,48 @@
+Texon · 第三方资产许可声明
+====================================================
+
+本目录（fonts/ 及一族）中的字形轮廓与度量数据，是从下列开源字体 / 字库
+**提取并转压**的衍生数据，经分片压缩后随本引擎再分发。使用、再分发本资产时，
+请遵守各上游来源的许可证原文。
+
+1) Noto Sans CJK SC / Noto Serif CJK SC   （CJK 主体现衬线 / 无衬线覆盖）
+   来源  : Google Noto CJK
+   许可证: SIL Open Font License 1.1 (OFL-1.1)
+   主页  : https://github.com/notofonts/noto-cjk
+   OFL 要点: 允许自由再分发与嵌入；未经上游明确许可，不得单独以 “Noto” 名称
+   分发修改过的字形。
+
+2) Latin Modern Math                       （主数学字体：计量 / 符号 / 变体链）
+   来源  : GUST e-foundry
+   许可证: GUST Font License (GFL)
+   主页  : http://www.gust.org.pl/projects/e-foundry/latin-modern
+
+3) DejaVu 系列                             （供体字形补充）
+   来源  : DejaVu Fonts
+   许可证: Bitstream Vera Fonts Copyright 及公有领域增量
+   主页  : https://dejavu-fonts.github.io/
+
+4) Droid Sans Fallback                     （Android 回退字体，补充非 IDEO 区）
+   来源  : Android Open Source Project
+   许可证: Apache License 2.0
+   主页  : https://android.googlesource.com/platform/frameworks/base/
+
+5) STIX Two Math                           （供体字形补充）
+   来源  : STIX Fonts
+   许可证: SIL Open Font License 1.1 (OFL-1.1)
+   主页  : https://github.com/stipub/stixfonts
+
+6) unicode-math 符号映射表                 （构建期符号/别名数据）
+   来源  : unicode-math 宏包
+   许可证: LaTeX Project Public License (LPPL)
+   主页  : https://www.ctan.org/pkg/unicode-math
+
+7) KaTeX 数据                              （构建期符号/别名/宏数据）
+   来源  : KaTeX
+   许可证: MIT License
+   主页  : https://github.com/KaTeX/KaTeX
+
+--------------------------------------------------------------------------------
+引擎代码（java/）为原创实现，其许可证见仓库根目录 LICENSE（MIT License）。
+本文件仅说明 fonts/ 等资产中字体衍生数据的上游来源与许可证；具体义务以各上游
+许可证原文为准。

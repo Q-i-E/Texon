@@ -1,0 +1,51 @@
+Texon · Third-party notices
+===========================
+
+The glyph outlines and metrics in this directory (`fonts/` and its families) are
+**derived data** extracted and recompressed from the following open-source fonts /
+typefaces, and are redistributed in sharded, compressed form as part of this engine.
+When using or redistributing these assets, please comply with the original licenses
+linked below.
+
+1) Noto Sans CJK SC / Noto Serif CJK SC    (main serif CJK / sans-serif CJK overlay)
+   Source  : Google Noto CJK
+   License : SIL Open Font License 1.1 (OFL-1.1)
+   Home    : https://github.com/notofonts/noto-cjk
+   OFL notes: redistribution and embedding are permitted; modified fonts must not be
+   distributed under the name "Noto" without explicit upstream permission.
+
+2) Latin Modern Math                        (main math font: metrics / symbols / variants)
+   Source  : GUST e-foundry
+   License : GUST Font License (GFL)
+   Home    : http://www.gust.org.pl/projects/e-foundry/latin-modern
+
+3) DejaVu family                            (donor glyph supplementation)
+   Source  : DejaVu Fonts
+   License : Bitstream Vera Fonts Copyright with public-domain additions
+   Home    : https://dejavu-fonts.github.io/
+
+4) Droid Sans Fallback                      (Android fallback font, non-IDEO supplementation)
+   Source  : Android Open Source Project
+   License : Apache License 2.0
+   Home    : https://android.googlesource.com/platform/frameworks/base/
+
+5) STIX Two Math                            (donor glyph supplementation)
+   Source  : STIX Fonts
+   License : SIL Open Font License 1.1 (OFL-1.1)
+   Home    : https://github.com/stipub/stixfonts
+
+6) unicode-math symbol table                (build-time symbol / alias data)
+   Source  : unicode-math package
+   License : LaTeX Project Public License (LPPL)
+   Home    : https://www.ctan.org/pkg/unicode-math
+
+7) KaTeX data                               (build-time symbol / alias / macro data)
+   Source  : KaTeX
+   License : MIT License
+   Home    : https://github.com/KaTeX/KaTeX
+
+--------------------------------------------------------------------------------
+The engine code (`java/`) is an original implementation licensed under the MIT
+License; see the `LICENSE` file in the repository root.
+This file documents the provenance and licenses of the font-derived data in
+`fonts/` and related assets only; the original upstream licenses take precedence.
