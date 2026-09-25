@@ -537,6 +537,14 @@ public final class Layout {
 		return HBox.of(new Box[0]);
 	}
 	private byte classOf(Ast ast, int node) {
+		if (node < 0) return SpacingTable.ORD;
+		byte m = ast.klass[node];
+		if (m != 0) return (byte) (m - 1);
+		byte r = computeClass(ast, node);
+		ast.klass[node] = (byte) (r + 1);
+		return r;
+	}
+	private byte computeClass(Ast ast, int node) {
 		switch (ast.kind[node]) {
 			case Ast.CLASS:
 				return classOfId(ast.b[node]);
