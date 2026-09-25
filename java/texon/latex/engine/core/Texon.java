@@ -13,6 +13,7 @@ public final class Texon {
 	private final Parser parser;
 	private final LayoutCache cache;
 	private final GlyphPaths paths;
+	private final MaskCache masks;
 	private RasterSink realtime;
 	private Texon(FontMetrics metrics, GlyphOutlines outlines) {
 		this.metrics = metrics;
@@ -21,6 +22,7 @@ public final class Texon {
 		this.parser = new Parser(new Lexer(), ast);
 		this.cache = new LayoutCache(layout, ast, parser, 256);
 		this.paths = new GlyphPaths(outlines, 4096);
+		this.masks = new MaskCache(4096);
 	}
 	public static Texon load(InputStream metrics, InputStream outlines) throws IOException {
 		return new Texon(FontMetrics.load(metrics), GlyphOutlines.load(outlines));
@@ -84,7 +86,7 @@ public final class Texon {
 		int h = (int) Math.ceil(root.totalHeight() * scale);
 		if (w < 1) w = 1;
 		if (h < 1) h = 1;
-		if (reuse == null) return new RasterSink(outlines, paths, w, h, scale, ox * scale, root.height * scale, background);
+		if (reuse == null) return new RasterSink(outlines, paths, masks, w, h, scale, ox * scale, root.height * scale, background);
 		return reuse.reset(w, h, scale, ox * scale, root.height * scale, background);
 	}
 	private Box box(String latex) {

@@ -183,6 +183,8 @@ public final class FontMetrics {
 	private Family[] fams;
 	private Block lastBlock;
 	private int lastIdx;
+	private int lastCp = -2;
+	private int lastFamily = -1;
 	private FontMetrics(Block single) {
 		this.unitsPerEm = single.unitsPerEm;
 		this.ascender = single.ascender;
@@ -296,26 +298,28 @@ public final class FontMetrics {
 	public void addFamily(int family, Assets in, String stem) throws IOException {
 		if (fams == null) fams = new Family[16];
 		fams[family] = new Family(in, stem, Parts.load(in, stem));
+		lastCp = -2;
 	}
 	private boolean find(int cp, int family) {
+		if (cp == lastCp && family == lastFamily) return true;
 		Family f = fams != null && family > 0 && family < fams.length ? fams[family] : null;
 		if (f != null) {
 			Block b = f.block(cp);
 			if (b != null) {
 				int i = indexOf(b, cp);
-				if (i >= 0) {
-					lastBlock = b;
-					lastIdx = i;
-					return true;
-				}
+				if (i >= 0) return hit(b, i, cp, family);
 			}
 		}
 		Block b = block(cp);
 		if (b == null) return false;
 		int i = indexOf(b, cp);
-		if (i < 0) return false;
+		return i >= 0 && hit(b, i, cp, family);
+	}
+	private boolean hit(Block b, int i, int cp, int family) {
 		lastBlock = b;
 		lastIdx = i;
+		lastCp = cp;
+		lastFamily = family;
 		return true;
 	}
 	public Chain chain(int cp) {

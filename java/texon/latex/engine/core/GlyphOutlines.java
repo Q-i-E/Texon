@@ -6,12 +6,12 @@ import java.util.*;
 import java.util.zip.*;
 public final class GlyphOutlines {
 	private static final int MAGIC = 0x54584F31;
-	private static final int MAX_CACHED = 8;
+	private static final long MAX_BLOB_BYTES = 8L << 20;
 	private final Assets in;
 	private final String stem;
 	private final Parts parts;
 	private final Blob single;
-	private final LinkedHashMap<Integer, Blob> cache;
+	private final BlobCache cache;
 	private Family[] fams;
 	private GlyphOutlines(Blob single) {
 		this.in = null;
@@ -25,7 +25,7 @@ public final class GlyphOutlines {
 		this.stem = stem;
 		this.parts = parts;
 		this.single = null;
-		this.cache = new LinkedHashMap<Integer, Blob>(16, 0.75f, true);
+		this.cache = new BlobCache(MAX_BLOB_BYTES);
 	}
 	public static GlyphOutlines load(InputStream stream) throws IOException {
 		return new GlyphOutlines(Blob.parse(readAll(stream)));
@@ -71,13 +71,6 @@ public final class GlyphOutlines {
 		} catch (IOException e) {
 			b = Blob.EMPTY;
 		}
-		if (cache.size() >= MAX_CACHED) {
-			Iterator<Integer> it = cache.keySet().iterator();
-			if (it.hasNext()) {
-				it.next();
-				it.remove();
-			}
-		}
 		cache.put(i, b);
 		return b;
 	}
@@ -102,12 +95,12 @@ public final class GlyphOutlines {
 		private final Assets in;
 		private final String stem;
 		private final Parts parts;
-		private final LinkedHashMap<Integer, Blob> cache;
+		private final BlobCache cache;
 		Family(Assets in, String stem, Parts parts) {
 			this.in = in;
 			this.stem = stem;
 			this.parts = parts;
-			this.cache = new LinkedHashMap<Integer, Blob>(16, 0.75f, true);
+			this.cache = new BlobCache(MAX_BLOB_BYTES);
 		}
 		String path(int code) {
 			int i = parts.find(code);
@@ -122,15 +115,33 @@ public final class GlyphOutlines {
 			} catch (IOException e) {
 				b = Blob.EMPTY;
 			}
-			if (cache.size() >= MAX_CACHED) {
-				Iterator<Integer> it = cache.keySet().iterator();
-				if (it.hasNext()) {
-					it.next();
-					it.remove();
-				}
-			}
 			cache.put(i, b);
 			return b;
+		}
+	}
+	private static final class BlobCache {
+		private final LinkedHashMap<Integer, Blob> map = new LinkedHashMap<>(16, 0.75f, true);
+		private final long budget;
+		private long bytes;
+		BlobCache(long budget) {
+			this.budget = budget < (1 << 16) ? (1 << 16) : budget;
+		}
+		Blob get(int key) {
+			return map.get(key);
+		}
+		void put(int key, Blob b) {
+			Blob old = map.put(key, b);
+			if (old != null) bytes -= old.bytes();
+			bytes += b.bytes();
+			if (bytes > budget) trim();
+		}
+		private void trim() {
+			Iterator<Map.Entry<Integer, Blob>> it = map.entrySet().iterator();
+			while (bytes > budget && map.size() > 1 && it.hasNext()) {
+				Map.Entry<Integer, Blob> e = it.next();
+				bytes -= e.getValue().bytes();
+				it.remove();
+			}
 		}
 	}
 	private static final class Blob {
@@ -144,6 +155,9 @@ public final class GlyphOutlines {
 			this.off = off;
 			this.data = data;
 			this.base = base;
+		}
+		long bytes() {
+			return (long) data.length + ((cp.length + off.length) << 2) + 48;
 		}
 		static Blob parse(byte[] all) throws IOException {
 			ByteBuffer head = ByteBuffer.wrap(all).order(ByteOrder.BIG_ENDIAN);

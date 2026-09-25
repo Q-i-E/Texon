@@ -11,6 +11,7 @@ public final class Parts {
 	public final int[] count;
 	public final int[] flags;
 	public final String[] name;
+	private final int[] byShift;
 	private Parts(int bits, int total, int[] base, int[] count, int[] flags, String[] name) {
 		this.bits = bits;
 		this.total = total;
@@ -18,6 +19,19 @@ public final class Parts {
 		this.count = count;
 		this.flags = flags;
 		this.name = name;
+		this.byShift = index(base, bits);
+	}
+	private static int[] index(int[] base, int bits) {
+		int max = -1;
+		for (int b : base) {
+			int k = b >> bits;
+			if (k > max) max = k;
+		}
+		if (max < 0) return new int[0];
+		int[] m = new int[max + 1];
+		java.util.Arrays.fill(m, -1);
+		for (int i = 0; i < base.length; i++) m[base[i] >> bits] = i;
+		return m;
 	}
 	public int size() {
 		return base.length;
@@ -29,19 +43,9 @@ public final class Parts {
 		return base.length > 0 ? 0 : -1;
 	}
 	public int find(int cp) {
-		int lo = 0;
-		int hi = base.length - 1;
-		int found = -1;
-		while (lo <= hi) {
-			int mid = (lo + hi) >>> 1;
-			if (base[mid] <= cp) {
-				found = mid;
-				lo = mid + 1;
-			} else hi = mid - 1;
-		}
-		if (found < 0) return -1;
-		if (cp >= base[found] + (1 << bits)) return -1;
-		return found;
+		int k = cp >> bits;
+		if (k >= byShift.length) return -1;
+		return byShift[k];
 	}
 	public static Parts load(Assets in, String stem) throws IOException {
 		return load(in.open(stem + ".idx"));
