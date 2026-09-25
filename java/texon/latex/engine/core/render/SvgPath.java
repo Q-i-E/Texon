@@ -2,8 +2,9 @@ package texon.latex.engine.core.render;
 public final class SvgPath {
 	private SvgPath() {
 	}
-	private static final float[] BUF = new float[6];
+	private static final ThreadLocal<float[]> BUF = ThreadLocal.withInitial(() -> new float[6]);
 	public static void parse(String d, PathSink s) {
+		float[] buf = BUF.get();
 		int n = d.length();
 		int i = 0;
 		char cmd = 0;
@@ -30,69 +31,69 @@ public final class SvgPath {
 				continue;
 			}
 			int k = arity(cmd);
-			for (int j = 0; j < k; j++) i = read(d, i, j);
+			for (int j = 0; j < k; j++) i = read(d, i, j, buf);
 			switch (cmd) {
 				case 'M':
-					x = BUF[0];
-					y = BUF[1];
+					x = buf[0];
+					y = buf[1];
 					sx = x;
 					sy = y;
 					s.moveTo(x, y);
 					cmd = 'L';
 					break;
 				case 'm':
-					x += BUF[0];
-					y += BUF[1];
+					x += buf[0];
+					y += buf[1];
 					sx = x;
 					sy = y;
 					s.moveTo(x, y);
 					cmd = 'l';
 					break;
 				case 'L':
-					x = BUF[0];
-					y = BUF[1];
+					x = buf[0];
+					y = buf[1];
 					s.lineTo(x, y);
 					break;
 				case 'l':
-					x += BUF[0];
-					y += BUF[1];
+					x += buf[0];
+					y += buf[1];
 					s.lineTo(x, y);
 					break;
 				case 'H':
-					x = BUF[0];
+					x = buf[0];
 					s.lineTo(x, y);
 					break;
 				case 'h':
-					x += BUF[0];
+					x += buf[0];
 					s.lineTo(x, y);
 					break;
 				case 'V':
-					y = BUF[0];
+					y = buf[0];
 					s.lineTo(x, y);
 					break;
 				case 'v':
-					y += BUF[0];
+					y += buf[0];
 					s.lineTo(x, y);
 					break;
 				case 'C':
-					s.cubicTo(BUF[0], BUF[1], BUF[2], BUF[3], BUF[4], BUF[5]);
-					x = BUF[4];
-					y = BUF[5];
+					s.cubicTo(buf[0], buf[1], buf[2], buf[3], buf[4], buf[5]);
+					x = buf[4];
+					y = buf[5];
 					break;
 				case 'c':
-					s.cubicTo(x + BUF[0], y + BUF[1], x + BUF[2], y + BUF[3], x + BUF[4], y + BUF[5]);
-					x += BUF[4];
-					y += BUF[5];
+					s.cubicTo(x + buf[0], y + buf[1], x + buf[2], y + buf[3], x + buf[4], y + buf[5]);
+					x += buf[4];
+					y += buf[5];
 					break;
 				case 'Q':
-					s.quadTo(BUF[0], BUF[1], BUF[2], BUF[3]);
-					x = BUF[2];
-					y = BUF[3];
+					s.quadTo(buf[0], buf[1], buf[2], buf[3]);
+					x = buf[2];
+					y = buf[3];
 					break;
 				case 'q':
-					s.quadTo(x + BUF[0], y + BUF[1], x + BUF[2], y + BUF[3]);
-					x += BUF[2];
-					y += BUF[3];
+					s.quadTo(x + buf[0], y + buf[1], x + buf[2], y + buf[3]);
+					x += buf[2];
+					y += buf[3];
 					break;
 				default:
 					i++;
@@ -109,7 +110,7 @@ public final class SvgPath {
 			default: return 0;
 		}
 	}
-	private static int read(String d, int i, int slot) {
+	private static int read(String d, int i, int slot, float[] buf) {
 		int n = d.length();
 		while (i < n) {
 			char c = d.charAt(i);
@@ -121,7 +122,7 @@ public final class SvgPath {
 			char c = d.charAt(i);
 			if ((c >= '0' && c <= '9') || c == '.') i++; else break;
 		}
-		BUF[slot] = i == start ? 0f : Float.parseFloat(d.substring(start, i));
+		buf[slot] = i == start ? 0f : Float.parseFloat(d.substring(start, i));
 		return i;
 	}
 }

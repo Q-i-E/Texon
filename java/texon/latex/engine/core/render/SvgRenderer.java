@@ -70,20 +70,22 @@ public final class SvgRenderer implements VectorSink {
 		b.append("</defs>");
 	}
 	public void glyph(int cp, float x, float baseline, int percent, int family, int argb) {
-		String d = outlines == null ? null : outlines.path(cp, family);
-		if (d != null && d.length() > 0) {
-			int k = key(cp, family);
-			if (!glyphs.containsKey(k)) glyphs.put(k, d);
-			out.append("<use xlink:href=\"#").append(gid(cp, family)).append('"');
-			if (percent != GlyphBox.FULL) {
-				float f = percent * 0.01f;
-				out.append(" transform=\"translate(").append(num(x)).append(' ').append(num(baseline)).append(") scale(").append(num(f)).append(")\"");
-			} else if (x != 0 || baseline != 0) {
-				out.append(" transform=\"translate(").append(num(x)).append(' ').append(num(baseline)).append(")\"");
-			}
-			fillAttr(argb);
-			out.append("/>");
+		int k = key(cp, family);
+		String d = glyphs.get(k);
+		if (d == null) {
+			d = outlines == null ? null : outlines.path(cp, family);
+			if (d == null || d.length() == 0) return;
+			glyphs.put(k, d);
 		}
+		out.append("<use xlink:href=\"#").append(gid(cp, family)).append('"');
+		if (percent != GlyphBox.FULL) {
+			float f = percent * 0.01f;
+			out.append(" transform=\"translate(").append(num(x)).append(' ').append(num(baseline)).append(") scale(").append(num(f)).append(")\"");
+		} else if (x != 0 || baseline != 0) {
+			out.append(" transform=\"translate(").append(num(x)).append(' ').append(num(baseline)).append(")\"");
+		}
+		fillAttr(argb);
+		out.append("/>");
 	}
 	public void rect(float x, float y, float w, float h, int argb) {
 		out.append("<rect x=\"").append(num(x)).append("\" y=\"").append(num(y)).append("\" width=\"").append(num(w)).append("\" height=\"").append(num(h)).append('"');
