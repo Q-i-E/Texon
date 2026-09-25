@@ -27,6 +27,7 @@ public final class Lexer {
 		size = 0;
 		if (kind.length > KEEP) reset();
 		int n = s.length();
+		ensure(n + 16);
 		int i = 0;
 		while (i < n) {
 			char c = s.charAt(i);
@@ -52,6 +53,9 @@ public final class Lexer {
 				i++;
 			} else if (c <= ' ') {
 				i++;
+			} else if (c < 0x80) {
+				put(CHAR, c, i, i + 1);
+				i++;
 			} else {
 				int cp = Character.codePointAt(s, i);
 				int w = Character.charCount(cp);
@@ -60,8 +64,7 @@ public final class Lexer {
 			}
 		}
 		put(EOF, 0, n, n);
-		while (kind.length < size + 16) grow();
-		for (int k = 0; k < 16; k++) {
+		for (int k = 1; k < 16; k++) {
 			kind[size + k] = EOF;
 			val[size + k] = 0;
 			at[size + k] = n;
@@ -112,15 +115,16 @@ public final class Lexer {
 		return j + w;
 	}
 	private void put(byte k, int v, int from, int to) {
-		if (size == kind.length) grow();
 		kind[size] = k;
 		val[size] = v;
 		at[size] = from;
 		end[size] = to;
 		size++;
 	}
-	private void grow() {
-		int cap = kind.length << 1;
+	private void ensure(int need) {
+		if (kind.length >= need) return;
+		int cap = kind.length;
+		while (cap < need) cap <<= 1;
 		kind = java.util.Arrays.copyOf(kind, cap);
 		val = java.util.Arrays.copyOf(val, cap);
 		at = java.util.Arrays.copyOf(at, cap);

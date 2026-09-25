@@ -257,21 +257,39 @@ public final class SymbolTable {
 	public static String[] NAME = new String[0];
 	public static byte[] KIND = new byte[0];
 	public static int[] VALUE = new int[0];
+	private static int[] SLOT = new int[0];
+	private static int SLOT_MASK;
 	public static void install(String[] name, byte[] kind, int[] value) {
 		NAME = name;
 		KIND = kind;
 		VALUE = value;
+		int cap = 16;
+		while (cap < name.length * 2) cap <<= 1;
+		SLOT = new int[cap];
+		java.util.Arrays.fill(SLOT, -1);
+		SLOT_MASK = cap - 1;
+		for (int i = 0; i < name.length; i++) {
+			int s = hash(name[i]) & SLOT_MASK;
+			while (SLOT[s] != -1) s = (s + 1) & SLOT_MASK;
+			SLOT[s] = i;
+		}
 	}
 	public static int indexOf(CharSequence s, int from, int to) {
-		int lo = 0;
-		int hi = NAME.length - 1;
-		while (lo <= hi) {
-			int mid = (lo + hi) >>> 1;
-			int c = compare(s, from, to, NAME[mid]);
-			if (c == 0) return mid;
-			if (c < 0) hi = mid - 1; else lo = mid + 1;
+		if (SLOT.length == 0) return -1;
+		int h = 0x811C9DC5;
+		for (int i = from; i < to; i++) h = (h ^ s.charAt(i)) * 0x01000193;
+		int slot = h & SLOT_MASK;
+		while (true) {
+			int e = SLOT[slot];
+			if (e < 0) return -1;
+			if (compare(s, from, to, NAME[e]) == 0) return e;
+			slot = (slot + 1) & SLOT_MASK;
 		}
-		return -1;
+	}
+	private static int hash(String s) {
+		int h = 0x811C9DC5;
+		for (int i = 0; i < s.length(); i++) h = (h ^ s.charAt(i)) * 0x01000193;
+		return h;
 	}
 	private static int compare(CharSequence s, int from, int to, String name) {
 		int n = to - from;
