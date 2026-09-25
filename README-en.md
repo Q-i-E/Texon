@@ -1,22 +1,14 @@
 # Texon
 
-<sub>English · [中文](README.md)</sub>
+<sub>English · [简体中文](README.md)</sub>
 
-**A pure-Java LaTeX math rendering library** — parsing → layout → rendering (vector / raster) all happen locally, **without Android and without any third-party runtime dependency**. Glyph data ships as sharded, compressed assets built offline.
+**A pure-Java LaTeX math rendering library** — parsing → layout → rendering all happen locally, **with no dependency on Android and no third-party runtime library**.
 
 ```java
 Texon texon = Texon.load(Assets.dir(new File("assets/fonts")), "metrics", "outlines");
-String svg = texon.svg("\\frac{a}{b}", 48f);            // vector: self-contained SVG
-byte[] png = texon.png("\\sum_{i=1}^{n} a_i", 96f);     // raster: PNG bytes
+String svg   = texon.svg("\\frac{a}{b}", 48f);          // vector: self-contained SVG
+byte[] png   = texon.png("\\sum_{i=1}^{n} a_i", 96f);   // raster: PNG bytes
 ```
-
----
-
-## Preview
-
-Pure-Java backend output for the full render list (`assets/showcase.txt`, 598 items):
-
-![showcase](showcase/pure.png)
 
 ---
 
@@ -37,48 +29,81 @@ Pure-Java backend output for the full render list (`assets/showcase.txt`, 598 it
 
 ---
 
+## Preview
+
+![showcase](showcase/pure.png)
+
+---
+
 ## Features
 
-- **Pure Java, zero dependencies**: only `java.*` — runs on desktop, servers, and Android, anywhere there is a JVM.
+- **Pure Java, zero dependencies**: only `java.*` — runs on desktop, servers and Android, anywhere a JVM exists.
 - **Two render backends** over the same layout tree:
   - **Vector**: `svg(...)` → a self-contained SVG string (glyph paths embedded).
   - **Raster**: `png(...)` / `raster(...)` → PNG bytes / ARGB pixels.
-- **Sharded, on-demand assets**: an index (`.idx`) plus independent shards; hitting a character decompresses only the matching shard (metrics at 4096 code points per shard, outlines at 1024).
-- **CJK dual-family**: `\text{…}` uses the serif family (incl. Chinese), `\mathsf{…}` / `\texttt{…}` use a sans-serif overlay family, falling back to the default automatically.
-- **Real-time friendly**: layout cache + cross-frame glyph-path cache + reusable raster sink, suitable for edit previews and continuous rendering.
-- **Deterministic build**: the same source plus the same font inputs reproduce assets byte-for-byte.
+- **Sharded assets, loaded on demand**: an index (`.idx`) plus independent shards; hitting a character decompresses only the matching shard (metrics at 4096 code points per shard, outlines at 1024 per shard).
+- **Dual CJK family coverage**: `\text{…}` uses the serif family (incl. Chinese), while `\mathsf{…}` / `\texttt{…}` use the sans-serif overlay family; it falls back to the default family automatically when missing.
+- **Real-time friendly**: layout cache + cross-frame glyph-path cache + cross-frame glyph-coverage cache + reusable raster sink, suitable for edit previews and continuous rendering.
+- **Deterministic build**: the same source plus the same font inputs reproduce the assets byte-for-byte.
 
 ---
 
 ## Repository layout
 
 ```
-assets/
-  fonts/
-    metrics.idx + metrics/<bucket>.bin              main metrics + tables (symbols/spacing/accents/families)
-    outlines.idx + outlines/<bucket>.bin            main glyph outlines (incl. serif CJK)
-    cjk-sans-metrics.idx + cjk-sans-metrics/<bucket>.bin     sans-serif CJK metrics overlay
-    cjk-sans-outlines.idx + cjk-sans-outlines/<bucket>.bin   sans-serif CJK outlines overlay
-
-java/
-  texon/latex/engine/core/
-    Texon.java          facade: load / svg / raster / png
-    FontMetrics.java  GlyphOutlines.java  Assets.java   asset parsing (shards + index)
-    Tables.java  Parts.java  ColorTable.java
-    lex/      Lexer, SymbolTable          tokenizing
-    parse/    Ast, Parser                recursive-descent LaTeX subset grammar
-    box/      Box and its subclasses     layout intermediate representation
-    layout/   Layout, LayoutCache, *Table  typesetting & caching
-    render/   Renderer, VectorSink, SvgRenderer, RasterSink, Raster, Png, GlyphPaths, …
+Texon/
+├── assets/
+│   └── fonts/
+│       ├── metrics.idx                      main font metrics index
+│       ├── metrics/<bucket>.bin             metrics shard (symbols / spacing / accents / families)
+│       ├── outlines.idx                     main font outlines index
+│       ├── outlines/<bucket>.bin            outline shard (incl. serif CJK)
+│       ├── cjk-sans-metrics.idx             sans-serif CJK metrics overlay index
+│       ├── cjk-sans-metrics/<bucket>.bin    sans-serif CJK metrics overlay shard
+│       ├── cjk-sans-outlines.idx            sans-serif CJK outlines overlay index
+│       └── cjk-sans-outlines/<bucket>.bin   sans-serif CJK outlines overlay shard
+└── java/
+    └── texon/latex/engine/core/
+        ├── Texon.java              facade: load / svg / raster / png
+        ├── Assets.java             asset interface (InputStream open)
+        ├── FontMetrics.java        metrics parsing (index + shards)
+        ├── GlyphOutlines.java      outline parsing (index + shards)
+        ├── Parts.java              shard table / direct lookup
+        ├── Tables.java             symbol / spacing / accent / family tables
+        ├── ColorTable.java         color table
+        ├── lex/
+        │   ├── Lexer.java          tokenizing
+        │   └── SymbolTable.java    symbol table
+        ├── parse/
+        │   ├── Ast.java            syntax tree
+        │   └── Parser.java         recursive-descent LaTeX subset grammar
+        ├── box/
+        │   └── Box.java + subclasses   layout intermediate representation
+        ├── layout/
+        │   ├── Layout.java         typesetting
+        │   ├── LayoutCache.java    layout cache
+        │   └── *Table.java         accent / delimiter / spacing / family tables
+        └── render/
+            ├── Renderer.java       layout tree walk
+            ├── VectorSink.java     vector drawing interface
+            ├── SvgRenderer.java    SVG backend
+            ├── SvgPath.java        SVG path parser
+            ├── RasterSink.java     raster backend
+            ├── GlyphMask.java      glyph coverage mask
+            ├── MaskCache.java      glyph coverage cache
+            ├── GlyphPaths.java     glyph path cache
+            ├── PathSink.java       path sink interface
+            ├── Raster.java         ARGB bitmap
+            └── Png.java            PNG encoder
 ```
 
-`java/` is the source root: after compilation the packages are `texon.latex.engine.core.*`. `assets/` holds prebuilt runtime data and is shipped with the repository.
+`java/` is the source root: after compilation the packages / entry classes are `texon.latex.engine.core.*`. `assets/` is the built runtime data, shipped with the repository.
 
 ---
 
 ## Requirements
 
-- JDK 8+ (officially built with `javac --release 11`; plain Java, so JDK 8 can compile it too)
+- JDK 8+ (officially built with `javac --release 11`; plain Java, so JDK 8 can compile and run it too)
 - No third-party JARs, no Android SDK
 
 ---
@@ -108,7 +133,7 @@ javac -encoding utf-8 -cp out -d out Demo.java
 java -cp out Demo
 ```
 
-Running requires `assets/fonts/` to be present (**shipped with the repo**).
+Running requires `assets/fonts/` to be present in the repository (**shipped**).
 
 ---
 
@@ -121,14 +146,14 @@ import java.io.File;
 import texon.latex.engine.core.Assets;
 import texon.latex.engine.core.Texon;
 
-// from a directory (pure Java, recommended)
+// Option 1: load from a directory (pure Java, recommended)
 Texon texon = Texon.load(Assets.dir(new File("assets/fonts")), "metrics", "outlines");
 
-// from any two InputStreams (the index entry points)
+// Option 2: any two InputStreams (the index entry points)
 Texon texon = Texon.load(metricsStream, outlinesStream);
 ```
 
-`Assets` is a single-method interface (`InputStream open(String name)`), shipped with `Assets.dir(File)` for the file system; implement it yourself to plug in Zip, network, an Android `AssetManager`, etc.
+`Assets` is an interface with a single method `InputStream open(String name)`; the library ships with `Assets.dir(File)` (file-system based). You can also implement it as needed to plug in custom storage (Zip, network, Android `AssetManager`, etc.).
 
 ### Rendering
 
@@ -139,7 +164,7 @@ String svg = texon.svg("\\int_0^1 x\\,dx = \\frac{1}{2}", 48f);
 // raster pixels
 Raster r = texon.raster("\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix}", 48f, 0xFFFFFFFF);
 int width = r.width, height = r.height;
-int[] pixels = r.pixels;                        // ARGB8888
+int[] pixels = r.pixels;                       // ARGB8888
 
 // PNG bytes
 byte[] png = texon.png("E = mc^2", 96f);
@@ -181,7 +206,7 @@ body = "TXM1" | unitsPerEm i32 | asc i32 | desc i32 | lineGap i32
        | constCount i32 | consts[]{ keyLen i16, key, value i32 }
        | glyphCount i32 | cp[] i32 | w[] i32 | h/d/ic/il/ta/it/ib[] i16
        | chains[] | hchains[] | asms[]          (CORE shards only)
-       | tablesLen i32 | tables[]                (CORE shards only, TXTB segment)
+       | tablesLen i32 | tables[]                (CORE shards only, TXTB table segment)
 ```
 
 ### Outline shard `TXO1`
@@ -197,15 +222,15 @@ Bucketing: metrics `cp >> 12` (4096 code points per shard), outlines `cp >> 10` 
 
 ## Supported LaTeX
 
-A recursive-descent parser covers a common LaTeX math subset (**not** full TeX). Covered categories include:
+A recursive-descent parser covers most of the LaTeX math subset (**not** full TeX). Covered categories include:
 
 - **Sub/superscripts, fractions, roots**: `_ ^`, `\frac \dfrac \tfrac \cfrac`, `\sqrt \sqrt[3]`
 - **Big operators and limits**: `\sum \prod \int \oint \lim \liminf \argmax \projlim`
 - **Auto-sizing delimiters**: `\left( \right]`, `\bigl \Bigl \biggl` …
-- **Matrix / environments**: `pmatrix bmatrix matrix array cases align gather`, `\hline \multicolumn`, `\substack \sideset \smashoperator`
-- **Accents & decorations**: `\hat \tilde \bar \vec \dot \utilde \overgroup \underbar \overbrace \underbrace`
+- **Matrices / environments**: `pmatrix bmatrix matrix array cases align gather`, `\hline \multicolumn`, `\substack \sideset \smashoperator`
+- **Accents and decorations**: `\hat \tilde \bar \vec \dot \utilde \overgroup \underbar \overbrace \underbrace`
 - **Boxes / colors**: `\boxed \cancel \cancelto \textcolor \colorbox`
-- **Text & font families**: `\text \textrm \textsf \texttt`, `\mathbf \mathcal \mathfrak \mathsf \mathtt \mathbb`
+- **Text and font families**: `\text \textrm \textsf \texttt`, `\mathbf \mathcal \mathfrak \mathsf \mathtt \mathbb`
 - **Arrows / relations / symbols**: `\xrightarrow \xLeftrightarrow \xmapsto`, `\coloneqq \subseteqq \nexists \nleq …`
 - **Chinese / CJK**: `\text{中文}` uses serif, `\mathsf{한글}` uses the sans-serif overlay family
 
@@ -213,33 +238,33 @@ A recursive-descent parser covers a common LaTeX math subset (**not** full TeX).
 
 ## Font assets
 
-`assets/fonts/` is shipped with the repository (sharded, compressed, loaded on demand) — **works out of the box, no rebuild needed**:
+`assets/fonts/` is shipped with the repository (sharded, compressed, loaded on demand):
 
 ```java
 Texon texon = Texon.load(Assets.dir(new File("assets/fonts")), "metrics", "outlines");
 ```
 
-The assets are derived data extracted offline from upstream open fonts; see [`assets/NOTICE-en.txt`](assets/NOTICE-en.txt) for provenance and licenses.
+The assets are derived data extracted offline from upstream open-source fonts; provenance and licenses are in [`assets/NOTICE-en.md`](assets/NOTICE-en.md).
 
 ---
 
 ## FAQ
 
 **Q: At runtime it says `metrics.idx` / `outlines.idx` not found?**
-`assets/fonts/` is missing or the path is wrong. Make sure the repo contains `assets/fonts/` (shipped), or point `Assets.dir(new File("correct/path/fonts"))` at the right location.
+`assets/fonts/` is missing or the path is wrong. Make sure the repository contains `assets/fonts/` (shipped with the library), or point `Assets.dir(new File("correct/path/fonts"))` at the right location.
 
 **Q: Some character renders blank / missing?**
-Verify the glyph exists in the assets; `assets/fonts/` is prebuilt data, see [`assets/NOTICE-en.txt`](assets/NOTICE-en.txt) for coverage and provenance.
+First confirm the glyph exists in the assets; `assets/fonts/` is prebuilt data — see [`assets/NOTICE-en.md`](assets/NOTICE-en.md) for its coverage.
 
-**Q: Can I use it on Android?**
-Yes — the library itself has zero Android dependencies. On Android, implement `Assets` over `AssetManager` (`manager.open("fonts/" + name)`) and package `assets/fonts` into the APK.
+**Q: Can it be used on Android?**
+Yes. The library itself has zero Android dependencies; on Android, implement `Assets` over `AssetManager` (`manager.open("fonts/" + name)`) and package `assets/fonts` into the APK.
 
 **Q: How large are the assets?**
-About 33MB total (sharded + compressed). Not decompressed all at once; only matching shards are loaded on demand.
+About 33MB in total (sharded + compressed). They are not decompressed all at once; only matching shards are loaded on demand.
 
 ---
 
 ## License
 
-- **Code (`java/`)**: **MIT License**, see [`LICENSE`](LICENSE) in the repository root.
-- **Assets (`assets/fonts/`)**: derived data extracted from upstream open fonts, subject to each source license (Noto CJK OFL, Latin Modern GFL, DejaVu, DroidSansFallback Apache-2.0, STIX OFL, …) — see [`assets/NOTICE-en.txt`](assets/NOTICE-en.txt) (or the Chinese `assets/NOTICE.txt`).
+- **Code (`java/`)**: **MIT License**, see [`LICENSE`](LICENSE) in the root directory.
+- **Assets (`assets/fonts/`)**: **derived data** from upstream open-source fonts, subject to each source license; see [`assets/NOTICE-en.md`](assets/NOTICE-en.md).

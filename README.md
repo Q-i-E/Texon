@@ -1,22 +1,14 @@
 # Texon
 
-<sub>中文 · [English](README-en.md)</sub>
+<sub>简体中文 · [English](README-en.md)</sub>
 
-**纯 Java 的 LaTeX 数学公式渲染库** —— 解析 → 排版 → 渲染（矢量 / 光栅）全部在本地完成，**不依赖 Android，也不依赖任何第三方运行时库**。字形数据以分片压缩资产形式离线提供，随库发布。
+**一个纯 Java 的 LaTeX 数学公式渲染库** —— 解析 -> 排版 -> 渲染全部在本地完成，**不依赖 Android，也不依赖任何第三方运行时库**。
 
 ```java
 Texon texon = Texon.load(Assets.dir(new File("assets/fonts")), "metrics", "outlines");
 String svg   = texon.svg("\\frac{a}{b}", 48f);          // 矢量：自包含 SVG
 byte[] png   = texon.png("\\sum_{i=1}^{n} a_i", 96f);   // 光栅：PNG 字节
 ```
-
----
-
-## 效果预览
-
-全量渲染清单（`assets/showcase.txt`，598 条）的纯 Java 后端输出：
-
-![showcase](showcase/pure.png)
 
 ---
 
@@ -37,15 +29,21 @@ byte[] png   = texon.png("\\sum_{i=1}^{n} a_i", 96f);   // 光栅：PNG 字节
 
 ---
 
+## 效果预览
+
+![showcase](showcase/pure.png)
+
+---
+
 ## 特性
 
 - **纯 Java，零依赖**：只用到 `java.*`，可运行在桌面、服务端、Android，只要是 JVM 即可。
 - **两套渲染后端**，作用于同一棵布局树：
-  - **矢量**：`svg(...)` → 返回自包含 SVG 字符串（字形路径已内嵌）。
+  - **矢量**：`svg(...)` → 返回自包含 SVG 字符串（内嵌字形路径）。
   - **光栅**：`png(...)` / `raster(...)` → PNG 字节 / ARGB 像素。
 - **分片资产、按需加载**：清单（`.idx`）+ 独立分片；命中一个字符只解压对应分片（度量每片 4096 码点、轮廓每片 1024 码点）。
 - **CJK 双族覆盖**：`\text{…}` 走衬线（含中文），`\mathsf{…}` / `\texttt{…}` 走无衬线覆盖族；缺失时自动回退默认族。
-- **实时渲染友好**：布局缓存 + 跨帧字形路径缓存 + 光栅 sink 复用，适合编辑回显、连续渲染。
+- **实时渲染友好**：布局缓存 + 跨帧字形路径缓存 + 字形覆盖率缓存 + 光栅 sink 复用，适合编辑回显、连续渲染。
 - **确定性构建**：同一套源码 + 同一批字体输入，资产逐字节可复现。
 
 ---
@@ -53,23 +51,50 @@ byte[] png   = texon.png("\\sum_{i=1}^{n} a_i", 96f);   // 光栅：PNG 字节
 ## 目录结构
 
 ```
-assets/
-  fonts/
-    metrics.idx + metrics/<bucket>.bin            主字体度量 + 表段（符号/间距/重音/族）
-    outlines.idx + outlines/<bucket>.bin          主字体字形轮廓（含衬线 CJK）
-    cjk-sans-metrics.idx + cjk-sans-metrics/<bucket>.bin   无衬线 CJK 族度量覆盖
-    cjk-sans-outlines.idx + cjk-sans-outlines/<bucket>.bin 无衬线 CJK 族轮廓覆盖
-
-java/
-  texon/latex/engine/core/
-    Texon.java           门面：load / svg / raster / png
-    FontMetrics.java  GlyphOutlines.java  Assets.java  资产解析（分片 + 清单）
-    Tables.java  Parts.java  ColorTable.java
-    lex/      Lexer, SymbolTable          词法
-    parse/    Ast, Parser                 LaTeX 子集文法（递归下降）
-    box/      Box 及其子类                布局中间表示
-    layout/   Layout, LayoutCache, *Table 排版与缓存
-    render/   Renderer, VectorSink, SvgRenderer, RasterSink, Raster, Png, GlyphPaths, …
+Texon/
+├── assets/
+│   └── fonts/
+│       ├── metrics.idx                      主字体度量清单
+│       ├── metrics/<bucket>.bin             主字体度量分片（符号 / 间距 / 重音 / 族表）
+│       ├── outlines.idx                     主字体轮廓清单
+│       ├── outlines/<bucket>.bin            主字体字形轮廓分片（含衬线 CJK）
+│       ├── cjk-sans-metrics.idx             无衬线 CJK 族度量清单
+│       ├── cjk-sans-metrics/<bucket>.bin    无衬线 CJK 族度量分片
+│       ├── cjk-sans-outlines.idx            无衬线 CJK 族轮廓清单
+│       └── cjk-sans-outlines/<bucket>.bin   无衬线 CJK 族轮廓分片
+└── java/
+    └── texon/latex/engine/core/
+        ├── Texon.java              门面：load / svg / raster / png
+        ├── Assets.java             资产接口（InputStream open）
+        ├── FontMetrics.java        度量解析（清单 + 分片）
+        ├── GlyphOutlines.java      轮廓解析（清单 + 分片）
+        ├── Parts.java              分片表与直查
+        ├── Tables.java             符号 / 间距 / 重音 / 族表段
+        ├── ColorTable.java         颜色表
+        ├── lex/
+        │   ├── Lexer.java          词法
+        │   └── SymbolTable.java    符号表
+        ├── parse/
+        │   ├── Ast.java            语法树
+        │   └── Parser.java         LaTeX 子集文法（递归下降）
+        ├── box/
+        │   └── Box.java + 子类      布局中间表示
+        ├── layout/
+        │   ├── Layout.java         排版
+        │   ├── LayoutCache.java    布局缓存
+        │   └── *Table.java         重音 / 定界 / 间距 / 族等表
+        └── render/
+            ├── Renderer.java       布局树遍历
+            ├── VectorSink.java     矢量绘制接口
+            ├── SvgRenderer.java    SVG 后端
+            ├── SvgPath.java        SVG path 解析
+            ├── RasterSink.java     光栅后端
+            ├── GlyphMask.java      字形覆盖率掩码
+            ├── MaskCache.java      字形覆盖率缓存
+            ├── GlyphPaths.java     字形路径缓存
+            ├── PathSink.java       路径接收接口
+            ├── Raster.java         ARGB 位图
+            └── Png.java            PNG 编码
 ```
 
 `java/` 是源码根：编译后包名/引导类为 `texon.latex.engine.core.*`。`assets/` 是构建好的运行时数据，已随仓库预置。
@@ -197,7 +222,7 @@ payload = n i32 | cp[n] i32 | off[n+1] i32 | data[]（UTF-8 的 SVG path 串拼�
 
 ## 支持的 LaTeX
 
-递归下降解析器覆盖常用 LaTeX 数学子集（**不是**完整 TeX）。覆盖类别包括：
+递归下降解析器覆盖大部分 LaTeX 数学子集（**并非**完整 TeX）。覆盖类别包括：
 
 - **上下标 / 分式 / 根式**：`_ ^`、`\frac \dfrac \tfrac \cfrac`、`\sqrt \sqrt[3]`
 - **大型算符与极限**：`\sum \prod \int \oint \lim \liminf \argmax \projlim`
@@ -213,13 +238,13 @@ payload = n i32 | cp[n] i32 | off[n+1] i32 | data[]（UTF-8 的 SVG path 串拼�
 
 ## 字体资产
 
-`assets/fonts/` 已随仓库提供（分片压缩、按需加载），**开箱即用，无需任何重建**：
+`assets/fonts/` 已随仓库提供（分片压缩、按需加载）：
 
 ```java
 Texon texon = Texon.load(Assets.dir(new File("assets/fonts")), "metrics", "outlines");
 ```
 
-资产是从上游开源字体离线提取的衍生数据；来源与许可证见 [`assets/NOTICE.txt`](assets/NOTICE.txt)。
+资产是从上游开源字体离线提取的衍生数据；来源与许可证见 [`assets/NOTICE.md`](assets/NOTICE.md)。
 
 ---
 
@@ -229,7 +254,7 @@ Texon texon = Texon.load(Assets.dir(new File("assets/fonts")), "metrics", "outli
 `assets/fonts/` 缺失或路径不对。请确保仓库含 `assets/fonts/`（随库发布），或先用 `Assets.dir(new File("正确路径/fonts"))` 指向正确位置。
 
 **Q：某个字符渲染成空白 / 缺字？**
-先确认对应字形在资产里；`assets/fonts/` 为预构建数据，覆盖范围见 [`assets/NOTICE.txt`](assets/NOTICE.txt)。
+先确认对应字形在资产里；`assets/fonts/` 为预构建数据，覆盖范围见 [`assets/NOTICE.md`](assets/NOTICE.md)。
 
 **Q：能放到 Android 用吗？**
 能。库本身零 Android 依赖；在 Android 上把 `Assets` 实现为基于 `AssetManager` 打开（`manager.open("fonts/" + name)`），并把 `assets/fonts` 打包进 APK 即可。
@@ -242,4 +267,4 @@ Texon texon = Texon.load(Assets.dir(new File("assets/fonts")), "metrics", "outli
 ## 许可
 
 - **代码（`java/`）**：**MIT License**，见根目录 [`LICENSE`](LICENSE)。
-- **资产（`assets/fonts/`）**：为上游开源字体的**衍生数据**，须遵守各来源许可证（Noto CJK OFL、Latin Modern GFL、DejaVu、DroidSansFallback Apache-2.0、STIX OFL 等），见 [`assets/NOTICE.txt`](assets/NOTICE.txt)。
+- **资产（`assets/fonts/`）**：为上游开源字体的**衍生数据**，须遵守各来源许可证，见 [`assets/NOTICE.md`](assets/NOTICE.md)。
