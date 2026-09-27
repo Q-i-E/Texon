@@ -20,6 +20,11 @@ byte[] png   = texon.png("\\sum_{i=1}^{n} a_i", 96f);   // 光栅：PNG 字节
 - [环境要求](#环境要求)
 - [快速开始](#快速开始)
 - [使用](#使用)
+- [配置](#配置)
+- [度量](#度量)
+- [批量与流式排版](#批量与流式排版)
+- [多实例与共享资产](#多实例与共享资产)
+- [预解码](#预解码)
 - [渲染输出](#渲染输出)
 - [字形资产格式](#字形资产格式)
 - [支持的 LaTeX](#支持的-latex)
@@ -63,41 +68,51 @@ Texon/
 │       ├── cjk-sans-outlines.idx            无衬线 CJK 族轮廓清单
 │       └── cjk-sans-outlines/<bucket>.bin   无衬线 CJK 族轮廓分片
 └── java/
-    └── texon/latex/engine/core/
-        ├── Texon.java              门面：load / svg / raster / png
-        ├── Assets.java             资产接口（InputStream open）
-        ├── FontMetrics.java        度量解析（清单 + 分片）
-        ├── GlyphOutlines.java      轮廓解析（清单 + 分片）
-        ├── Parts.java              分片表与直查
-        ├── Tables.java             符号 / 间距 / 重音 / 族表段
-        ├── ColorTable.java         颜色表
-        ├── lex/
-        │   ├── Lexer.java          词法
-        │   └── SymbolTable.java    符号表
-        ├── parse/
-        │   ├── Ast.java            语法树
-        │   └── Parser.java         LaTeX 子集文法（递归下降）
-        ├── box/
-        │   └── Box.java + 子类      布局中间表示
-        ├── layout/
-        │   ├── Layout.java         排版
-        │   ├── LayoutCache.java    布局缓存
-        │   └── *Table.java         重音 / 定界 / 间距 / 族等表
-        └── render/
-            ├── Renderer.java       布局树遍历
-            ├── VectorSink.java     矢量绘制接口
-            ├── SvgRenderer.java    SVG 后端
-            ├── SvgPath.java        SVG path 解析
-            ├── RasterSink.java     光栅后端
-            ├── GlyphMask.java      字形覆盖率掩码
-            ├── MaskCache.java      字形覆盖率缓存
-            ├── GlyphPaths.java     字形路径缓存
-            ├── PathSink.java       路径接收接口
-            ├── Raster.java         ARGB 位图
-            └── Png.java            PNG 编码
+    └── texon/latex/engine/
+        ├── core/                    引擎：解析 / 排版 / 渲染
+        │   ├── Texon.java           门面：load / svg / raster / png
+        │   ├── TexonAssets.java     可共享的轮廓资产（多实例复用）
+        │   ├── LayoutMetrics.java   度量结果：宽 / 高 / 基线 / 左侧墨迹
+        │   ├── Assets.java          资产接口（InputStream open）
+        │   ├── FontMetrics.java     度量解析（清单 + 分片）
+        │   ├── GlyphOutlines.java   轮廓解析（清单 + 分片）
+        │   ├── Parts.java           分片表与直查
+        │   ├── Tables.java          表段装载（写入 config）
+        │   ├── TexonContext.java    运行期上下文：查表索引 + 配置 API
+        │   ├── lex/
+        │   │   └── Lexer.java       词法
+        │   ├── parse/
+        │   │   ├── Ast.java         语法树
+        │   │   └── Parser.java      LaTeX 子集文法（递归下降）
+        │   ├── box/
+        │   │   └── Box.java + 子类   布局中间表示
+        │   ├── layout/
+        │   │   ├── Layout.java      排版
+        │   │   └── LayoutCache.java 布局缓存
+        │   └── render/
+        │       ├── Renderer.java    布局树遍历
+        │       ├── VectorSink.java  矢量绘制接口
+        │       ├── SvgRenderer.java SVG 后端
+        │       ├── SvgPath.java     SVG path 解析
+        │       ├── RasterSink.java  光栅后端
+        │       ├── GlyphMask.java   字形覆盖率掩码
+        │       ├── MaskCache.java   字形覆盖率缓存
+        │       ├── GlyphPaths.java  字形路径缓存
+        │       ├── PathSink.java    路径接收接口
+        │       ├── Raster.java      ARGB 位图
+        │       └── Png.java         PNG 编码
+        └── config/                  纯配置：只有数据与常量，无任何算法（每实例独立）
+            ├── TexonOptions.java    数值 / 容量 / 开关
+            ├── SymbolTable.java     符号 / 命令表
+            ├── SpacingTable.java    数学分类 + 间距
+            ├── AccentTable.java     重音表
+            ├── AccentCompat.java    重音兼容间距
+            ├── FamilyTable.java     字体族映射
+            ├── DelimTable.java      定界符拉伸表
+            └── ColorTable.java      颜色表
 ```
 
-`java/` 是源码根：编译后包名/引导类为 `texon.latex.engine.core.*`。`assets/` 是构建好的运行时数据，已随仓库预置。
+`java/` 是源码根：包分为 `texon.latex.engine.core.*`（引擎）与 `texon.latex.engine.config.*`（纯配置）。`assets/` 是构建好的运行时数据，已随仓库预置。
 
 ---
 
@@ -175,6 +190,135 @@ Raster frame = texon.render(source, pxPerEm, background);
 
 ---
 
+## 配置
+
+所有输出侧与容量侧参数都集中在 `config/TexonOptions` —— 纯数据、无算法，且**每个 `Texon` 实例独立**：
+
+```java
+TexonOptions opts = new TexonOptions();
+opts.pngLevel = 6;               // PNG 压缩级别
+opts.rasterSupersample = 2;      // 光栅超采样倍率
+opts.svgPrecision = 3;           // SVG 坐标小数位
+opts.layoutCacheCapacity = 512;  // 布局缓存条目上限
+Texon texon = Texon.load(Assets.dir(new File("assets/fonts")), "metrics", "outlines", opts);
+```
+
+| 字段 | 默认 | 含义 |
+|---|---|---|
+| `braceAboveGap` / `braceBelowGap` | `35` / `35` | `\overbrace` / `\underbrace` 横线与内容的垂直间距 |
+| `stackAboveGap` | `193` | `\atop` 等上下堆叠的基线间距 |
+| `alignRowGap` | `753` | `align` / `gather` 等多行环境的行距 |
+| `boxPad` | `300` | `\boxed` / `\fbox` 边框与内容间距 |
+| `muDiv` | `18` | 1 mu = `unitsPerEm / muDiv` |
+| `delimiterPad` | `100` | 定界符与内容的额外间距 |
+| `accentGap` | `0` | 重音字形的额外基线间距 |
+| `errorColor` | `0xFFFF3B30` | 错误占位符 ARGB |
+| `layoutCacheCapacity` | `256` | 布局缓存条目上限 |
+| `glyphPathsCapacity` | `4096` | 字形路径缓存条目上限 |
+| `maskCacheCapacity` | `4096` | 字形覆盖率缓存条目上限 |
+| `blobBudget` | `8L << 20` | 轮廓分片解压后允许驻留的内存预算（字节） |
+| `pngLevel` | `6` | PNG 压缩级别，见 `java.util.zip.Deflater` |
+| `svgPrecision` | `3` | SVG 坐标小数位精度（`0` = 仅整数） |
+| `svgIdPrefix` | `"g"` | SVG 字形 path 的 id 前缀（多图内联时避免冲突） |
+| `rasterSupersample` | `2` | 每像素超采样倍率（越大越平滑越慢） |
+| `pngFilter` | `PNG_FILTER_NONE` | PNG 行滤波：`PNG_FILTER_NONE` / `0..4`（固定）/ `PNG_FILTER_AUTO`（逐行自适应） |
+| `pngColorMode` | `PNG_COLOR_RGB` | PNG 颜色模式：`PNG_COLOR_RGB` / `PNG_COLOR_AUTO`（全像素为灰时转灰度） |
+
+默认值即改造前的写死值，因此**默认配置下输出与旧版逐字节相同**；改动任一项，对应产物随之变化 —— 差异由你控制，而非隐式行为。
+
+**关于 PNG 行滤波**：实测对公式类内容**不滤波最优** —— 逐行切换滤波类型会破坏「全白行完全相同」的长程匹配，体积反而增大 17%~75%（全量 1944×5980 画布：filter 0 = 720KB，auto = 884KB）。故默认 `PNG_FILTER_NONE`，`PNG_FILTER_AUTO` 作为可选，供照片类内容使用。
+
+**关于灰度**：仅当全像素 `r == g == b` 才启用；实测省 12%~15%，但部分解码器按线性灰度解释会改变观感，故默认关闭。
+
+---
+
+## 度量
+
+`measure(...)` 返回 `LayoutMetrics`，单位一律为**像素**：
+
+```java
+LayoutMetrics m = texon.measure("\\frac{a+b}{c}", 48f);
+m.width;      // 总宽（含右侧斜体修正）
+m.height;     // 总高（上伸 + 下延）
+m.baseline;   // 基线距顶部
+m.inkLeft;    // 左侧墨迹（可能为负，用于描边 / 裁边对齐）
+```
+
+光栅结果同样携带基线与墨迹包围盒，便于行内对齐与紧凑导出：
+
+```java
+Raster r = texon.raster("\\sum_{i=1}^{n} a_i", 48f);
+r.baseline;                        // 基线在像素坐标中的位置
+r.inkX; r.inkY; r.inkW; r.inkH;    // 非背景像素的包围盒（空公式时 inkW = inkH = 0）
+```
+
+包围盒由光栅后端在绘制时 **O(1)** 跟踪，无额外遍历；`measure().baseline` 与 `raster().baseline` 由测试锁定一致。
+
+---
+
+## 批量与流式排版
+
+把多条公式组合成一行或一段，再一次性渲染。实现完全复用现有 `HBox` / `VBox` + `Renderer`，**零新增渲染代码**：
+
+```java
+// 基线对齐横排（默认使用原子间距）
+Box line = texon.row(new String[]{"a+b", "=", "c"});
+
+// 指定字距（字体单位，与 unitsPerEm 同尺度）
+Box line2 = texon.row(new String[]{"x", "y"}, 200);
+
+// 逐行基线对齐 + 行距；align 取 VBox.LEFT / VBox.CENTER
+Box block = texon.block(new String[]{"\\frac{a}{b}", "= c"}, 400, VBox.LEFT);
+
+// 渲染整块
+Raster px = texon.raster(block, 48f);                 // 白底
+Raster tr = texon.raster(block, 48f, 0x00000000);     // 透明底
+byte[] png = Png.encode(px, 6, TexonOptions.PNG_FILTER_NONE, TexonOptions.PNG_COLOR_RGB);
+
+// 或直接画到任意 VectorSink（SVG 后端 / 自定义后端）
+texon.draw(block, 0xFF000000, sink);
+```
+
+`row` 用 `HBox.of` / `HBox.kerned`，`block` 用 `VBox.of` 并按 `off[i] = off[i-1] - (depth[i-1] + lineGap + height[i])` 递推行位置 —— 与内部排版共用同一套基线规则。
+
+---
+
+## 多实例与共享资产
+
+轮廓层（`GlyphOutlines`，资产里最大的一块）可以跨实例共享；度量层与配置绑定 `TexonContext`，**不共享**：
+
+```java
+TexonAssets shared = TexonAssets.load(Assets.dir(new File("assets/fonts")), "outlines", 8L << 20);
+
+TexonOptions a = new TexonOptions();
+TexonOptions b = new TexonOptions();
+b.errorColor = 0xFF0000FF;
+
+Texon t1 = shared.newTexon(Assets.dir(new File("assets/fonts")), "metrics", a);
+Texon t2 = shared.newTexon(Assets.dir(new File("assets/fonts")), "metrics", b);
+// t1.outlines() == t2.outlines()，但 t1.context() != t2.context()
+```
+
+- 共享 `GlyphOutlines`（112 片 / 约 22MB 压缩、56MB 解压），两个实例只解压一份轮廓；每个实例仍持有自己的 `blobBudget` 与配置。
+- ⚠️ `FontMetrics` **不可共享**：符号 / 间距 / 重音 / 族表是在装载时 `Tables.install` 写进 `TexonContext` 的，跨实例共享会导致配置串台。
+- `Texon.load(...)` 语义不变（各自建轮廓）；共享是 **opt-in**。
+- `TexonAssets.addFamily(...)` 可向共享轮廓追加族（如无衬线 CJK 覆盖族）。
+
+---
+
+## 预解码
+
+编辑回显场景可先把即将用到的公式解析并解码一遍，避免首帧抖动：
+
+```java
+texon.prefetch("\\int_0^1 \\frac{x^2}{1+x}\\,dx");
+texon.prefetchAsync(source, executor);   // 异步版
+```
+
+实现方式复用 `Renderer.walk` + 一个**空操作 sink**：在 `glyph(cp, …, family, …)` 里只调 `metrics.width(cp, family)` 与 `outlines.path(cp, family)` 触发分片解码。`family` 由排版器精确解析，因此无需自行遍历语法树。
+
+---
+
 ## 渲染输出
 
 | 方法 | 返回 | 说明 |
@@ -183,6 +327,13 @@ Raster frame = texon.render(source, pxPerEm, background);
 | `Raster raster(latex, pxPerEm, bg)` | `Raster` | `{width, height, int[] pixels}`，ARGB8888 |
 | `byte[] png(latex, pxPerEm[, bg])` | `byte[]` | PNG 编码字节 |
 | `Raster render(latex, pxPerEm, bg)` | `Raster` | 复用上一帧 sink（实时） |
+| `LayoutMetrics measure(latex, pxPerEm)` | `LayoutMetrics` | 尺寸 / 基线 / 墨迹，见「[度量](#度量)」 |
+| `Box box(latex)` | `Box` | 解析 + 排版，得到布局树 |
+| `Box row(String[] parts[, gap])` | `Box` | 基线对齐横排，见「[批量与流式排版](#批量与流式排版)」 |
+| `Box block(String[] lines, lineGap[, align])` | `Box` | 多行基线对齐 + 行距 |
+| `Raster raster(Box root, pxPerEm[, bg])` | `Raster` | 渲染任意布局树 |
+| `void draw(Box root, argb, sink)` | — | 画到任意 `VectorSink` |
+| `void prefetch(latex)` / `prefetchAsync(latex, executor)` | — | 预解析并解码所需分片，见「[预解码](#预解码)」 |
 
 ---
 

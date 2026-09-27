@@ -20,6 +20,11 @@ byte[] png   = texon.png("\\sum_{i=1}^{n} a_i", 96f);   // raster: PNG bytes
 - [Requirements](#requirements)
 - [Quick start](#quick-start)
 - [Usage](#usage)
+- [Configuration](#configuration)
+- [Measurement](#measurement)
+- [Batch and streaming layout](#batch-and-streaming-layout)
+- [Multiple instances and shared assets](#multiple-instances-and-shared-assets)
+- [Prefetch](#prefetch)
 - [Render output](#render-output)
 - [Glyph asset format](#glyph-asset-format)
 - [Supported LaTeX](#supported-latex)
@@ -63,41 +68,51 @@ Texon/
 │       ├── cjk-sans-outlines.idx            sans-serif CJK outlines overlay index
 │       └── cjk-sans-outlines/<bucket>.bin   sans-serif CJK outlines overlay shard
 └── java/
-    └── texon/latex/engine/core/
-        ├── Texon.java              facade: load / svg / raster / png
-        ├── Assets.java             asset interface (InputStream open)
-        ├── FontMetrics.java        metrics parsing (index + shards)
-        ├── GlyphOutlines.java      outline parsing (index + shards)
-        ├── Parts.java              shard table / direct lookup
-        ├── Tables.java             symbol / spacing / accent / family tables
-        ├── ColorTable.java         color table
-        ├── lex/
-        │   ├── Lexer.java          tokenizing
-        │   └── SymbolTable.java    symbol table
-        ├── parse/
-        │   ├── Ast.java            syntax tree
-        │   └── Parser.java         recursive-descent LaTeX subset grammar
-        ├── box/
-        │   └── Box.java + subclasses   layout intermediate representation
-        ├── layout/
-        │   ├── Layout.java         typesetting
-        │   ├── LayoutCache.java    layout cache
-        │   └── *Table.java         accent / delimiter / spacing / family tables
-        └── render/
-            ├── Renderer.java       layout tree walk
-            ├── VectorSink.java     vector drawing interface
-            ├── SvgRenderer.java    SVG backend
-            ├── SvgPath.java        SVG path parser
-            ├── RasterSink.java     raster backend
-            ├── GlyphMask.java      glyph coverage mask
-            ├── MaskCache.java      glyph coverage cache
-            ├── GlyphPaths.java     glyph path cache
-            ├── PathSink.java       path sink interface
-            ├── Raster.java         ARGB bitmap
-            └── Png.java            PNG encoder
+    └── texon/latex/engine/
+        ├── core/                    engine: parse / typeset / render
+        │   ├── Texon.java           facade: load / svg / raster / png
+        │   ├── TexonAssets.java     shareable outline assets (reused across instances)
+        │   ├── LayoutMetrics.java   measurement result: width / height / baseline / inkLeft
+        │   ├── Assets.java          asset interface (InputStream open)
+        │   ├── FontMetrics.java     metrics parsing (index + shards)
+        │   ├── GlyphOutlines.java   outline parsing (index + shards)
+        │   ├── Parts.java           shard table / direct lookup
+        │   ├── Tables.java          table segment loader (writes into config)
+        │   ├── TexonContext.java    runtime context: lookup index + config API
+        │   ├── lex/
+        │   │   └── Lexer.java       tokenizing
+        │   ├── parse/
+        │   │   ├── Ast.java         syntax tree
+        │   │   └── Parser.java      recursive-descent LaTeX subset grammar
+        │   ├── box/
+        │   │   └── Box.java + subclasses   layout intermediate representation
+        │   ├── layout/
+        │   │   ├── Layout.java      typesetting
+        │   │   └── LayoutCache.java    layout cache
+        │   └── render/
+        │       ├── Renderer.java       layout tree walk
+        │       ├── VectorSink.java     vector drawing interface
+        │       ├── SvgRenderer.java    SVG backend
+        │       ├── SvgPath.java        SVG path parser
+        │       ├── RasterSink.java     raster backend
+        │       ├── GlyphMask.java      glyph coverage mask
+        │       ├── MaskCache.java      glyph coverage cache
+        │       ├── GlyphPaths.java     glyph path cache
+        │       ├── PathSink.java       path sink interface
+        │       ├── Raster.java         ARGB bitmap
+        │       └── Png.java            PNG encoder
+        └── config/                  pure configuration: data and constants only, no algorithms (per instance)
+            ├── TexonOptions.java    numeric / capacity / switches
+            ├── SymbolTable.java     symbol / command table
+            ├── SpacingTable.java    math classes + spacing
+            ├── AccentTable.java     accent table
+            ├── AccentCompat.java    accent compatibility gaps
+            ├── FamilyTable.java     family mapping
+            ├── DelimTable.java      delimiter stretch table
+            └── ColorTable.java      color table
 ```
 
-`java/` is the source root: after compilation the packages / entry classes are `texon.latex.engine.core.*`. `assets/` is the built runtime data, shipped with the repository.
+`java/` is the source root: packages are split into `texon.latex.engine.core.*` (engine) and `texon.latex.engine.config.*` (pure config). `assets/` is the built runtime data, shipped with the repository.
 
 ---
 
@@ -175,6 +190,135 @@ Raster frame = texon.render(source, pxPerEm, background);
 
 ---
 
+## Configuration
+
+Every output-side and capacity-side knob lives in `config/TexonOptions` — pure data, no algorithms, and **per `Texon` instance**:
+
+```java
+TexonOptions opts = new TexonOptions();
+opts.pngLevel = 6;               // PNG compression level
+opts.rasterSupersample = 2;      // raster supersampling factor
+opts.svgPrecision = 3;           // SVG coordinate decimals
+opts.layoutCacheCapacity = 512;  // layout cache entry limit
+Texon texon = Texon.load(Assets.dir(new File("assets/fonts")), "metrics", "outlines", opts);
+```
+
+| Field | Default | Meaning |
+|---|---|---|
+| `braceAboveGap` / `braceBelowGap` | `35` / `35` | vertical gap between the `\overbrace` / `\underbrace` bar and its content |
+| `stackAboveGap` | `193` | baseline gap for `\atop`-style stacks |
+| `alignRowGap` | `753` | leading for multi-line environments such as `align` / `gather` |
+| `boxPad` | `300` | padding between the frame and the content in `\boxed` / `\fbox` |
+| `muDiv` | `18` | 1 mu = `unitsPerEm / muDiv` |
+| `delimiterPad` | `100` | extra gap between a delimiter and its content |
+| `accentGap` | `0` | extra baseline gap for accent glyphs |
+| `errorColor` | `0xFFFF3B30` | ARGB of the error placeholder |
+| `layoutCacheCapacity` | `256` | layout cache entry limit |
+| `glyphPathsCapacity` | `4096` | glyph path cache entry limit |
+| `maskCacheCapacity` | `4096` | glyph coverage cache entry limit |
+| `blobBudget` | `8L << 20` | memory budget for resident decompressed outline shards (bytes) |
+| `pngLevel` | `6` | PNG compression level, see `java.util.zip.Deflater` |
+| `svgPrecision` | `3` | SVG coordinate decimals (`0` = integers only) |
+| `svgIdPrefix` | `"g"` | id prefix for SVG glyph paths (avoids clashes when inlining several images) |
+| `rasterSupersample` | `2` | samples per pixel (higher = smoother, slower) |
+| `pngFilter` | `PNG_FILTER_NONE` | PNG row filter: `PNG_FILTER_NONE` / `0..4` (fixed) / `PNG_FILTER_AUTO` (per-row adaptive) |
+| `pngColorMode` | `PNG_COLOR_RGB` | PNG color mode: `PNG_COLOR_RGB` / `PNG_COLOR_AUTO` (grayscale when every pixel is gray) |
+
+The defaults are exactly the values that used to be hard-coded, so **with the default options the output is byte-for-byte identical to the old implementation**; changing any field changes the corresponding artifact — the difference is under your control rather than implicit.
+
+**On PNG row filtering**: measurements show that for formula content **no filtering is optimal** — switching filter types per row destroys the "all-white rows are identical" long-range match, inflating the file by 17%–75% (full 1944×5980 canvas: filter 0 = 720KB, auto = 884KB). Hence the default `PNG_FILTER_NONE`; `PNG_FILTER_AUTO` is opt-in for photo-like content.
+
+**On grayscale**: enabled only when every pixel satisfies `r == g == b`; it saves 12%–15%, but some decoders interpret grayscale PNG as linear gray and shift the look, so it is off by default.
+
+---
+
+## Measurement
+
+`measure(...)` returns `LayoutMetrics`, always in **pixels**:
+
+```java
+LayoutMetrics m = texon.measure("\\frac{a+b}{c}", 48f);
+m.width;      // total width (including the right italic correction)
+m.height;     // total height (ascender + descender)
+m.baseline;   // baseline distance from the top
+m.inkLeft;    // left ink (may be negative; useful for stroke / crop alignment)
+```
+
+Raster results carry the baseline and the ink bounding box too, which helps with inline alignment and tight export:
+
+```java
+Raster r = texon.raster("\\sum_{i=1}^{n} a_i", 48f);
+r.baseline;                        // baseline position in pixel coordinates
+r.inkX; r.inkY; r.inkW; r.inkH;    // bounding box of non-background pixels (inkW = inkH = 0 for an empty formula)
+```
+
+The bounding box is tracked in **O(1)** while the raster backend draws — no extra pass; `measure().baseline` and `raster().baseline` are locked to agree by tests.
+
+---
+
+## Batch and streaming layout
+
+Compose several formulas into one line or one paragraph and render them in a single call. The implementation reuses the existing `HBox` / `VBox` + `Renderer`, with **no new rendering code**:
+
+```java
+// baseline-aligned horizontal run (atomic spacing by default)
+Box line = texon.row(new String[]{"a+b", "=", "c"});
+
+// explicit kerning (font units, same scale as unitsPerEm)
+Box line2 = texon.row(new String[]{"x", "y"}, 200);
+
+// baseline-aligned lines + leading; align is VBox.LEFT / VBox.CENTER
+Box block = texon.block(new String[]{"\\frac{a}{b}", "= c"}, 400, VBox.LEFT);
+
+// render the whole block
+Raster px = texon.raster(block, 48f);                 // white background
+Raster tr = texon.raster(block, 48f, 0x00000000);     // transparent background
+byte[] png = Png.encode(px, 6, TexonOptions.PNG_FILTER_NONE, TexonOptions.PNG_COLOR_RGB);
+
+// or draw into any VectorSink (SVG backend / a custom one)
+texon.draw(block, 0xFF000000, sink);
+```
+
+`row` uses `HBox.of` / `HBox.kerned`, while `block` uses `VBox.of` and advances lines with `off[i] = off[i-1] - (depth[i-1] + lineGap + height[i])` — the very same baseline rules the internal typesetter uses.
+
+---
+
+## Multiple instances and shared assets
+
+The outline layer (`GlyphOutlines`, by far the largest part of the assets) can be shared across instances; the metrics layer and the configuration are bound to a `TexonContext` and are **not** shared:
+
+```java
+TexonAssets shared = TexonAssets.load(Assets.dir(new File("assets/fonts")), "outlines", 8L << 20);
+
+TexonOptions a = new TexonOptions();
+TexonOptions b = new TexonOptions();
+b.errorColor = 0xFF0000FF;
+
+Texon t1 = shared.newTexon(Assets.dir(new File("assets/fonts")), "metrics", a);
+Texon t2 = shared.newTexon(Assets.dir(new File("assets/fonts")), "metrics", b);
+// t1.outlines() == t2.outlines(), but t1.context() != t2.context()
+```
+
+- Shares `GlyphOutlines` (112 shards / ~22MB compressed, 56MB decompressed): two instances decompress the outlines once; each instance still owns its own `blobBudget` and options.
+- ⚠️ `FontMetrics` **cannot be shared**: the symbol / spacing / accent / family tables are written into `TexonContext` by `Tables.install` at load time, so sharing them across instances would cross the configurations.
+- `Texon.load(...)` keeps its meaning (each instance builds its own outlines); sharing is **opt-in**.
+- `TexonAssets.addFamily(...)` appends a family to the shared outlines (e.g. the sans-serif CJK overlay family).
+
+---
+
+## Prefetch
+
+Edit-preview scenarios can parse and decode the upcoming formula up front to avoid a first-frame hiccup:
+
+```java
+texon.prefetch("\\int_0^1 \\frac{x^2}{1+x}\\,dx");
+texon.prefetchAsync(source, executor);   // asynchronous variant
+```
+
+It reuses `Renderer.walk` with a **no-op sink**: inside `glyph(cp, …, family, …)` it only calls `metrics.width(cp, family)` and `outlines.path(cp, family)` to trigger shard decoding. `family` is resolved by the typesetter, so there is no need to walk the syntax tree yourself.
+
+---
+
 ## Render output
 
 | Method | Returns | Description |
@@ -183,6 +327,13 @@ Raster frame = texon.render(source, pxPerEm, background);
 | `Raster raster(latex, pxPerEm, bg)` | `Raster` | `{width, height, int[] pixels}`, ARGB8888 |
 | `byte[] png(latex, pxPerEm[, bg])` | `byte[]` | PNG-encoded bytes |
 | `Raster render(latex, pxPerEm, bg)` | `Raster` | reuses the previous frame's sink (real-time) |
+| `LayoutMetrics measure(latex, pxPerEm)` | `LayoutMetrics` | size / baseline / ink, see [Measurement](#measurement) |
+| `Box box(latex)` | `Box` | parse + typeset, returns the layout tree |
+| `Box row(String[] parts[, gap])` | `Box` | baseline-aligned horizontal run, see [Batch and streaming layout](#batch-and-streaming-layout) |
+| `Box block(String[] lines, lineGap[, align])` | `Box` | multi-line baseline alignment + leading |
+| `Raster raster(Box root, pxPerEm[, bg])` | `Raster` | render an arbitrary layout tree |
+| `void draw(Box root, argb, sink)` | — | draw into any `VectorSink` |
+| `void prefetch(latex)` / `prefetchAsync(latex, executor)` | — | pre-parse and decode the needed shards, see [Prefetch](#prefetch) |
 
 ---
 
