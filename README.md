@@ -2,13 +2,7 @@
 
 <sub>简体中文 · [English](README-en.md)</sub>
 
-**一个纯 Java 的 LaTeX 数学公式渲染库** —— 解析 -> 排版 -> 渲染全部在本地完成，**不依赖 Android，也不依赖任何第三方运行时库**。
-
-```java
-Texon texon = Texon.load(Assets.dir(new File("assets/fonts")), "metrics", "outlines");
-String svg   = texon.svg("\\frac{a}{b}", 48f);          // 矢量：自包含 SVG
-byte[] png   = texon.png("\\sum_{i=1}^{n} a_i", 96f);   // 光栅：PNG 字节
-```
+一个由纯 Java 编写的的 LaTeX 数学公式渲染库。
 
 ---
 
@@ -42,12 +36,12 @@ byte[] png   = texon.png("\\sum_{i=1}^{n} a_i", 96f);   // 光栅：PNG 字节
 
 ## 特性
 
-- **纯 Java，零依赖**：只用到 `java.*`，可运行在桌面、服务端、Android，只要是 JVM 即可。
+- **纯 Java**：只用到 `java.*` 包，可运行在桌面、服务端、Android，只要是 JVM 即可。
 - **两套渲染后端**，作用于同一棵布局树：
   - **矢量**：`svg(...)` → 返回自包含 SVG 字符串（内嵌字形路径）。
   - **光栅**：`png(...)` / `raster(...)` → PNG 字节 / ARGB 像素。
 - **分片资产、按需加载**：清单（`.idx`）+ 独立分片；命中一个字符只解压对应分片（度量每片 4096 码点、轮廓每片 1024 码点）。
-- **CJK 双族覆盖**：`\text{…}` 走衬线（含中文），`\mathsf{…}` / `\texttt{…}` 走无衬线覆盖族；缺失时自动回退默认族。
+- **CJK 双族覆盖**：`\text{…}` 衬线（含中文），`\mathsf{…}` / `\texttt{…}` 无衬线覆盖族；缺失时自动回退默认族。
 - **实时渲染友好**：布局缓存 + 跨帧字形路径缓存 + 字形覆盖率缓存 + 光栅 sink 复用，适合编辑回显、连续渲染。
 - **确定性构建**：同一套源码 + 同一批字体输入，资产逐字节可复现。
 
@@ -112,14 +106,13 @@ Texon/
             └── ColorTable.java      颜色表
 ```
 
-`java/` 是源码根：包分为 `texon.latex.engine.core.*`（引擎）与 `texon.latex.engine.config.*`（纯配置）。`assets/` 是构建好的运行时数据，已随仓库预置。
+`java/` 是源码根：包分为 `texon.latex.engine.core.*`（引擎）与 `texon.latex.engine.config.*`（配置）。`assets/` 是构建好的运行时数据，已随仓库预置。
 
 ---
 
 ## 环境要求
 
-- JDK 8+（官方目标 `javac --release 11`，纯 Java 语法，JDK 8 亦可编译运行）
-- 无需任何第三方 JAR、无需 Android SDK
+- JDK 8+（官方目标 `javac --release 11`，JDK 8 亦可编译运行）
 
 ---
 
@@ -161,19 +154,19 @@ import java.io.File;
 import texon.latex.engine.core.Assets;
 import texon.latex.engine.core.Texon;
 
-// 方式一：从目录加载（纯 Java，推荐）
+// 方式一：从目录加载（推荐）
 Texon texon = Texon.load(Assets.dir(new File("assets/fonts")), "metrics", "outlines");
 
 // 方式二：任意两个 InputStream（清单入口）
 Texon texon = Texon.load(metricsStream, outlinesStream);
 ```
 
-`Assets` 是一个只有一个方法 `InputStream open(String name)` 的接口，随库附带 `Assets.dir(File)`（基于文件系统）；你也可以按需实现它来对接自定义存储（Zip、网络、Android `AssetManager` 等）。
+`Assets` 是一个只有一个方法 `InputStream open(String name)` 的接口，随库附带 `Assets.dir(File)`（基于文件系统）；你也可以按需实现它来对接自定义存储。
 
 ### 渲染
 
 ```java
-// 矢量：返回自包含 SVG 字符串
+// 矢量：返回 SVG 字符串
 String svg = texon.svg("\\int_0^1 x\\,dx = \\frac{1}{2}", 48f);
 
 // 光栅像素
@@ -184,7 +177,7 @@ int[] pixels = r.pixels;                       // ARGB8888
 // PNG 字节
 byte[] png = texon.png("E = mc^2", 96f);
 
-// 实时：复用上一帧 sink，适合编辑回显/连续渲染
+// 实时：复用上一帧 sink
 Raster frame = texon.render(source, pxPerEm, background);
 ```
 
@@ -192,7 +185,7 @@ Raster frame = texon.render(source, pxPerEm, background);
 
 ## 配置
 
-所有输出侧与容量侧参数都集中在 `config/TexonOptions` —— 纯数据、无算法，且**每个 `Texon` 实例独立**：
+所有输出侧与容量侧参数都集中在 `config/TexonOptions`：
 
 ```java
 TexonOptions opts = new TexonOptions();
@@ -224,11 +217,9 @@ Texon texon = Texon.load(Assets.dir(new File("assets/fonts")), "metrics", "outli
 | `pngFilter` | `PNG_FILTER_NONE` | PNG 行滤波：`PNG_FILTER_NONE` / `0..4`（固定）/ `PNG_FILTER_AUTO`（逐行自适应） |
 | `pngColorMode` | `PNG_COLOR_RGB` | PNG 颜色模式：`PNG_COLOR_RGB` / `PNG_COLOR_AUTO`（全像素为灰时转灰度） |
 
-默认值即改造前的写死值，因此**默认配置下输出与旧版逐字节相同**；改动任一项，对应产物随之变化 —— 差异由你控制，而非隐式行为。
+**PNG 行滤波**：对公式类内容**不滤波最优**，所以 `PNG_FILTER_NONE`，`PNG_FILTER_AUTO` 作为可选，供照片类内容使用。
 
-**关于 PNG 行滤波**：实测对公式类内容**不滤波最优** —— 逐行切换滤波类型会破坏「全白行完全相同」的长程匹配，体积反而增大 17%~75%（全量 1944×5980 画布：filter 0 = 720KB，auto = 884KB）。故默认 `PNG_FILTER_NONE`，`PNG_FILTER_AUTO` 作为可选，供照片类内容使用。
-
-**关于灰度**：仅当全像素 `r == g == b` 才启用；实测省 12%~15%，但部分解码器按线性灰度解释会改变观感，故默认关闭。
+**关于灰度**：仅当全像素 `r == g == b` 才启用；实测省 12%~15%，但部分解码器按线性灰度解释会改变观感。
 
 ---
 
@@ -252,13 +243,11 @@ r.baseline;                        // 基线在像素坐标中的位置
 r.inkX; r.inkY; r.inkW; r.inkH;    // 非背景像素的包围盒（空公式时 inkW = inkH = 0）
 ```
 
-包围盒由光栅后端在绘制时 **O(1)** 跟踪，无额外遍历；`measure().baseline` 与 `raster().baseline` 由测试锁定一致。
-
 ---
 
 ## 批量与流式排版
 
-把多条公式组合成一行或一段，再一次性渲染。实现完全复用现有 `HBox` / `VBox` + `Renderer`，**零新增渲染代码**：
+把多条公式组合成一行或一段，再一次性渲染。
 
 ```java
 // 基线对齐横排（默认使用原子间距）
@@ -279,13 +268,13 @@ byte[] png = Png.encode(px, 6, TexonOptions.PNG_FILTER_NONE, TexonOptions.PNG_CO
 texon.draw(block, 0xFF000000, sink);
 ```
 
-`row` 用 `HBox.of` / `HBox.kerned`，`block` 用 `VBox.of` 并按 `off[i] = off[i-1] - (depth[i-1] + lineGap + height[i])` 递推行位置 —— 与内部排版共用同一套基线规则。
+`row` 用 `HBox.of` / `HBox.kerned`，`block` 用 `VBox.of` 并按 `off[i] = off[i-1] - (depth[i-1] + lineGap + height[i])` 递推行位置。
 
 ---
 
 ## 多实例与共享资产
 
-轮廓层（`GlyphOutlines`，资产里最大的一块）可以跨实例共享；度量层与配置绑定 `TexonContext`，**不共享**：
+轮廓层（`GlyphOutlines`）可以跨实例共享；度量层与配置绑定 `TexonContext`，**不共享**：
 
 ```java
 TexonAssets shared = TexonAssets.load(Assets.dir(new File("assets/fonts")), "outlines", 8L << 20);
@@ -299,8 +288,8 @@ Texon t2 = shared.newTexon(Assets.dir(new File("assets/fonts")), "metrics", b);
 // t1.outlines() == t2.outlines()，但 t1.context() != t2.context()
 ```
 
-- 共享 `GlyphOutlines`（112 片 / 约 22MB 压缩、56MB 解压），两个实例只解压一份轮廓；每个实例仍持有自己的 `blobBudget` 与配置。
-- ⚠️ `FontMetrics` **不可共享**：符号 / 间距 / 重音 / 族表是在装载时 `Tables.install` 写进 `TexonContext` 的，跨实例共享会导致配置串台。
+- 共享 `GlyphOutlines`，两个实例只解压一份轮廓；每个实例仍持有自己的 `blobBudget` 与配置。
+- ⚠️ `FontMetrics` **不可共享**：符号 / 间距 / 重音 / 族表是在装载时 `Tables.install` 写进 `TexonContext` 的，跨实例共享会导致配置错乱。
 - `Texon.load(...)` 语义不变（各自建轮廓）；共享是 **opt-in**。
 - `TexonAssets.addFamily(...)` 可向共享轮廓追加族（如无衬线 CJK 覆盖族）。
 
@@ -315,7 +304,7 @@ texon.prefetch("\\int_0^1 \\frac{x^2}{1+x}\\,dx");
 texon.prefetchAsync(source, executor);   // 异步版
 ```
 
-实现方式复用 `Renderer.walk` + 一个**空操作 sink**：在 `glyph(cp, …, family, …)` 里只调 `metrics.width(cp, family)` 与 `outlines.path(cp, family)` 触发分片解码。`family` 由排版器精确解析，因此无需自行遍历语法树。
+实现方式复用 `Renderer.walk` + 一个**空操作 sink**：在 `glyph(cp, …, family, …)` 里只调 `metrics.width(cp, family)` 与 `outlines.path(cp, family)` 触发分片解码。
 
 ---
 
@@ -383,13 +372,13 @@ payload = n i32 | cp[n] i32 | off[n+1] i32 | data[]（UTF-8 的 SVG path 串拼�
 - **盒 / 颜色**：`\boxed \cancel \cancelto \textcolor \colorbox`
 - **文本与字体族**：`\text \textrm \textsf \texttt`、`\mathbf \mathcal \mathfrak \mathsf \mathtt \mathbb`
 - **箭头/关系/符号**：`\xrightarrow \xLeftrightarrow \xmapsto`、`\coloneqq \subseteqq \nexists \nleq …`
-- **中文/CJK**：`\text{中文}` 走衬线，`\mathsf{한글}` 走无衬线覆盖族
+- **中文/CJK**：`\text{中文}` 衬线，`\mathsf{한글}` 无衬线
 
 ---
 
 ## 字体资产
 
-`assets/fonts/` 已随仓库提供（分片压缩、按需加载）：
+`assets/fonts/` 已随仓库提供：
 
 ```java
 Texon texon = Texon.load(Assets.dir(new File("assets/fonts")), "metrics", "outlines");
@@ -406,12 +395,6 @@ Texon texon = Texon.load(Assets.dir(new File("assets/fonts")), "metrics", "outli
 
 **Q：某个字符渲染成空白 / 缺字？**
 先确认对应字形在资产里；`assets/fonts/` 为预构建数据，覆盖范围见 [`assets/NOTICE.md`](assets/NOTICE.md)。
-
-**Q：能放到 Android 用吗？**
-能。库本身零 Android 依赖；在 Android 上把 `Assets` 实现为基于 `AssetManager` 打开（`manager.open("fonts/" + name)`），并把 `assets/fonts` 打包进 APK 即可。
-
-**Q：资产多大？**
-全量约 33MB（分片压缩）。运行时不整包解压，按命中分片加载。
 
 ---
 
