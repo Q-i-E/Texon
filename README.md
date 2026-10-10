@@ -53,57 +53,57 @@ A LaTeX math rendering library written in pure Java.
 Texon/
 ├── assets/
 │   └── fonts/
-│       ├── metrics.idx                      Primary font metrics manifest
-│       ├── metrics/<bucket>.bin             Primary font metrics shards (symbols / spacing / accents / family tables)
-│       ├── outlines.idx                     Primary font outlines manifest
-│       ├── outlines/<bucket>.bin             Primary font glyph outline shards (includes serif CJK)
-│       ├── cjk-sans-metrics.idx             Sans-serif CJK family metrics manifest
-│       ├── cjk-sans-metrics/<bucket>.bin    Sans-serif CJK family metrics shards
-│       ├── cjk-sans-outlines.idx            Sans-serif CJK family outlines manifest
-│       └── cjk-sans-outlines/<bucket>.bin   Sans-serif CJK family outline shards
+│       ├── metrics.idx                     Primary font metrics manifest
+│       ├── metrics/<bucket>.bin            Primary font metrics shards (symbols / spacing / accents / family tables)
+│       ├── outlines.idx                    Primary font outlines manifest
+│       ├── outlines/<bucket>.bin           Primary font glyph outline shards (includes serif CJK)
+│       ├── cjk-sans-metrics.idx            Sans-serif CJK family metrics manifest
+│       ├── cjk-sans-metrics/<bucket>.bin   Sans-serif CJK family metrics shards
+│       ├── cjk-sans-outlines.idx           Sans-serif CJK family outlines manifest
+│       └── cjk-sans-outlines/<bucket>.bin  Sans-serif CJK family outline shards
 └── java/
     └── texon/latex/engine/
-        ├── core/                    Engine: parsing / typesetting / rendering
-        │   ├── Texon.java           Facade: load / svg / raster / png
-        │   ├── TexonAssets.java     Shareable outline assets (reused across instances)
-        │   ├── LayoutMetrics.java    Measurement result: width / height / baseline / left ink
-        │   ├── Assets.java           Asset interface (InputStream open)
-        │   ├── FontMetrics.java      Metrics parsing (manifest + shards)
-        │   ├── GlyphOutlines.java    Outline parsing (manifest + shards)
-        │   ├── Parts.java            Shard table and direct lookup
-        │   ├── Tables.java           Table segment loading (written into config)
-        │   ├── TexonContext.java     Runtime context: lookup indices + configuration API
+        ├── core/                           Engine: parsing / typesetting / rendering
+        │   ├── Texon.java                  Facade: load / svg / raster / png
+        │   ├── TexonAssets.java            Shareable outline assets (reused across instances)
+        │   ├── LayoutMetrics.java          Measurement result: width / height / baseline / left ink
+        │   ├── Assets.java                 Asset interface (InputStream open)
+        │   ├── FontMetrics.java            Metrics parsing (manifest + shards)
+        │   ├── GlyphOutlines.java          Outline parsing (manifest + shards)
+        │   ├── Parts.java                  Shard table and direct lookup
+        │   ├── Tables.java                 Table segment loading (written into config)
+        │   ├── TexonContext.java           Runtime context: lookup indices + configuration API
         │   ├── lex/
-        │   │   └── Lexer.java       Lexing
+        │   │   └── Lexer.java              Lexing
         │   ├── parse/
-        │   │   ├── Ast.java          Abstract syntax tree
-        │   │   └── Parser.java       LaTeX subset grammar (recursive descent)
+        │   │   ├── Ast.java                Abstract syntax tree
+        │   │   └── Parser.java             LaTeX subset grammar (recursive descent)
         │   ├── box/
         │   │   └── Box.java + subclasses   Layout intermediate representation
         │   ├── layout/
-        │   │   ├── Layout.java      Typesetting
-        │   │   └── LayoutCache.java  Layout cache
+        │   │   ├── Layout.java             Typesetting
+        │   │   └── LayoutCache.java        Layout cache
         │   └── render/
-        │       ├── Renderer.java     Layout tree traversal
-        │       ├── VectorSink.java   Vector drawing interface
-        │       ├── SvgRenderer.java  SVG backend
-        │       ├── SvgPath.java     SVG path parsing
-        │       ├── RasterSink.java   Raster backend
-        │       ├── GlyphMask.java    Glyph coverage mask
-        │       ├── MaskCache.java     Glyph coverage cache
-        │       ├── GlyphPaths.java   Glyph path cache
-        │       ├── PathSink.java     Path sink interface
-        │       ├── Raster.java       ARGB bitmap
-        │       └── Png.java          PNG encoding
-        └── config/                  Pure configuration: only data and constants, no algorithms (independent per instance)
-            ├── TexonOptions.java    Numeric values / capacities / switches
-            ├── SymbolTable.java     Symbol / command table
-            ├── SpacingTable.java    Math classes + spacing
-            ├── AccentTable.java     Accent table
-            ├── AccentCompat.java    Accent compatibility spacing
-            ├── FamilyTable.java     Font family mapping
-            ├── DelimTable.java      Delimiter stretching table
-            └── ColorTable.java      Color table
+        │       ├── Renderer.java           Layout tree traversal
+        │       ├── VectorSink.java         Vector drawing interface
+        │       ├── SvgRenderer.java        SVG backend
+        │       ├── SvgPath.java            SVG path parsing
+        │       ├── RasterSink.java         Raster backend
+        │       ├── GlyphMask.java          Glyph coverage mask
+        │       ├── MaskCache.java          Glyph coverage cache
+        │       ├── GlyphPaths.java         Glyph path cache
+        │       ├── PathSink.java           Path sink interface
+        │       ├── Raster.java             ARGB bitmap
+        │       └── Png.java                PNG encoding
+        └── config/
+            ├── TexonOptions.java           Numeric values / capacities / switches
+            ├── SymbolTable.java            Symbol / command table
+            ├── SpacingTable.java           Math classes + spacing
+            ├── AccentTable.java            Accent table
+            ├── AccentCompat.java           Accent compatibility spacing
+            ├── FamilyTable.java            Font family mapping
+            ├── DelimTable.java             Delimiter stretching table
+            └── ColorTable.java             Color table
 ```
 
 `java/` is the source root: packages are split into `texon.latex.engine.core.*` (engine) and `texon.latex.engine.config.*` (configuration). `assets/` holds prebuilt runtime data, already included in the repository.

@@ -95,7 +95,7 @@ Texon/
         │       ├── PathSink.java    路径接收接口
         │       ├── Raster.java      ARGB 位图
         │       └── Png.java         PNG 编码
-        └── config/                  纯配置：只有数据与常量，无任何算法（每实例独立）
+        └── config/
             ├── TexonOptions.java    数值 / 容量 / 开关
             ├── SymbolTable.java     符号 / 命令表
             ├── SpacingTable.java    数学分类 + 间距
