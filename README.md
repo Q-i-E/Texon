@@ -38,7 +38,7 @@ A LaTeX math rendering library written in pure Java.
 
 - **Pure Java**: depends only on `java.*` packages; runs on desktop, server, and Android — any JVM.
 - **Two rendering backends** operating on the same layout tree:
-  - **Vector**: `svg(...)` → returns a self-contained SVG string (glyph paths inlined).
+  - **Vector**: `svg(...)` → returns a self-contained SVG string.
   - **Raster**: `png(...)` / `raster(...)` → PNG bytes / ARGB pixels.
 - **Sharded assets, on-demand loading**: manifest (`.idx`) plus independent shards; hitting a character decompresses only the corresponding shard (metrics: 4096 code points per shard; outlines: 1024 code points per shard).
 - **CJK dual-family coverage**: `\text{…}` serif (includes Chinese), `\mathsf{…}` / `\texttt{…}` sans-serif coverage families; automatically falls back to the default family when missing.
@@ -79,9 +79,9 @@ Texon/
         │   │   ├── Ast.java                Abstract syntax tree
         │   │   └── Parser.java             LaTeX subset grammar (recursive descent)
         │   ├── box/
-        │   │   └── Box.java + subclasses   Layout intermediate representation
+        │   │   └── <type>Box.java          Layout intermediate representation
         │   ├── layout/
-        │   │   ├── Layout.java             Typesetting
+        │   │   ├── Layout.java             Layout
         │   │   └── LayoutCache.java        Layout cache
         │   └── render/
         │       ├── Renderer.java           Layout tree traversal
@@ -210,7 +210,7 @@ Texon texon = Texon.load(Assets.dir(new File("assets/fonts")), "metrics", "outli
 | `glyphPathsCapacity` | `4096` | Upper bound for glyph path cache entries |
 | `maskCacheCapacity` | `4096` | Upper bound for glyph coverage cache entries |
 | `blobBudget` | `8L << 20` | Memory budget (bytes) allowed for decompressed outline shards to remain resident |
-| `pngLevel` | `6` | PNG compression level; see `java.util.zip.Deflater` |
+| `pngLevel` | `6` | PNG compression level |
 | `svgPrecision` | `3` | SVG coordinate decimal precision (`0` = integers only) |
 | `svgIdPrefix` | `"g"` | ID prefix for SVG glyph paths (avoids collisions when multiple SVGs are inlined) |
 | `rasterSupersample` | `2` | Supersampling factor per pixel (larger = smoother but slower) |
@@ -291,7 +291,7 @@ Texon t2 = shared.newTexon(Assets.dir(new File("assets/fonts")), "metrics", b);
 - Sharing `GlyphOutlines` means the two instances decompress the outlines only once; each instance still holds its own `blobBudget` and configuration.
 - ⚠️ `FontMetrics` **cannot be shared**: symbol / spacing / accent / family tables are written into `TexonContext` via `Tables.install` at load time; sharing across instances would corrupt the configuration.
 - `Texon.load(...)` semantics are unchanged (each builds its own outlines); sharing is **opt-in**.
-- `TexonAssets.addFamily(...)` can append a family to the shared outlines (e.g., a sans-serif CJK coverage family).
+- `TexonAssets.addFamily(...)` can append a family to the shared outlines.
 
 ---
 
@@ -312,7 +312,7 @@ Implementation reuses `Renderer.walk` plus a **no-op sink**: inside `glyph(cp, �
 
 | Method | Returns | Description |
 |---|---|---|
-| `String svg(latex, pxPerEm)` | `String` | Self-contained `<svg>` text with glyph paths inlined |
+| `String svg(latex, pxPerEm)` | `String` | Self-contained `<svg>` text |
 | `Raster raster(latex, pxPerEm, bg)` | `Raster` | `{width, height, int[] pixels}`, ARGB8888 |
 | `byte[] png(latex, pxPerEm[, bg])` | `byte[]` | PNG-encoded bytes |
 | `Raster render(latex, pxPerEm, bg)` | `Raster` | Reuses the previous frame's sink (real-time) |
@@ -346,7 +346,7 @@ body = "TXM1" | unitsPerEm i32 | asc i32 | desc i32 | lineGap i32
        | constCount i32 | consts[]{ keyLen i16, key, value i32 }
        | glyphCount i32 | cp[] i32 | w[] i32 | h/d/ic/il/ta/it/ib[] i16
        | chains[] | hchains[] | asms[]          (CORE shards only)
-       | tablesLen i32 | tables[]                (CORE shards only, TXTB table segments)
+       | tablesLen i32 | tables[]               (CORE shards only, TXTB table segments)
 ```
 
 ### Outline Shard `TXO1`

@@ -38,7 +38,7 @@
 
 - **纯 Java**：只用到 `java.*` 包，可运行在桌面、服务端、Android，只要是 JVM 即可。
 - **两套渲染后端**，作用于同一棵布局树：
-  - **矢量**：`svg(...)` → 返回自包含 SVG 字符串（内嵌字形路径）。
+  - **矢量**：`svg(...)` → 返回自包含 SVG 字符串。
   - **光栅**：`png(...)` / `raster(...)` → PNG 字节 / ARGB 像素。
 - **分片资产、按需加载**：清单（`.idx`）+ 独立分片；命中一个字符只解压对应分片（度量每片 4096 码点、轮廓每片 1024 码点）。
 - **CJK 双族覆盖**：`\text{…}` 衬线（含中文），`\mathsf{…}` / `\texttt{…}` 无衬线覆盖族；缺失时自动回退默认族。
@@ -53,60 +53,58 @@
 Texon/
 ├── assets/
 │   └── fonts/
-│       ├── metrics.idx                      主字体度量清单
-│       ├── metrics/<bucket>.bin             主字体度量分片（符号 / 间距 / 重音 / 族表）
-│       ├── outlines.idx                     主字体轮廓清单
-│       ├── outlines/<bucket>.bin            主字体字形轮廓分片（含衬线 CJK）
-│       ├── cjk-sans-metrics.idx             无衬线 CJK 族度量清单
-│       ├── cjk-sans-metrics/<bucket>.bin    无衬线 CJK 族度量分片
-│       ├── cjk-sans-outlines.idx            无衬线 CJK 族轮廓清单
-│       └── cjk-sans-outlines/<bucket>.bin   无衬线 CJK 族轮廓分片
+│       ├── metrics.idx                     主字体度量清单
+│       ├── metrics/<bucket>.bin            主字体度量分片（符号 / 间距 / 重音 / 族表）
+│       ├── outlines.idx                    主字体轮廓清单
+│       ├── outlines/<bucket>.bin           主字体字形轮廓分片（含衬线 CJK）
+│       ├── cjk-sans-metrics.idx            无衬线 CJK 族度量清单
+│       ├── cjk-sans-metrics/<bucket>.bin   无衬线 CJK 族度量分片
+│       ├── cjk-sans-outlines.idx           无衬线 CJK 族轮廓清单
+│       └── cjk-sans-outlines/<bucket>.bin  无衬线 CJK 族轮廓分片
 └── java/
     └── texon/latex/engine/
-        ├── core/                    引擎：解析 / 排版 / 渲染
-        │   ├── Texon.java           门面：load / svg / raster / png
-        │   ├── TexonAssets.java     可共享的轮廓资产（多实例复用）
-        │   ├── LayoutMetrics.java   度量结果：宽 / 高 / 基线 / 左侧墨迹
-        │   ├── Assets.java          资产接口（InputStream open）
-        │   ├── FontMetrics.java     度量解析（清单 + 分片）
-        │   ├── GlyphOutlines.java   轮廓解析（清单 + 分片）
-        │   ├── Parts.java           分片表与直查
-        │   ├── Tables.java          表段装载（写入 config）
-        │   ├── TexonContext.java    运行期上下文：查表索引 + 配置 API
+        ├── core/                           引擎：解析 / 排版 / 渲染
+        │   ├── Texon.java                  门面：load / svg / raster / png
+        │   ├── TexonAssets.java            可共享的轮廓资产（多实例复用）
+        │   ├── LayoutMetrics.java          度量结果：宽 / 高 / 基线 / 左侧墨迹
+        │   ├── Assets.java                 资产接口（InputStream open）
+        │   ├── FontMetrics.java            度量解析（清单 + 分片）
+        │   ├── GlyphOutlines.java          轮廓解析（清单 + 分片）
+        │   ├── Parts.java                  分片表与直查
+        │   ├── Tables.java                 表段装载（写入 config）
+        │   ├── TexonContext.java           运行期上下文：查表索引 + 配置 API
         │   ├── lex/
-        │   │   └── Lexer.java       词法
+        │   │   └── Lexer.java              词法
         │   ├── parse/
-        │   │   ├── Ast.java         语法树
-        │   │   └── Parser.java      LaTeX 子集文法（递归下降）
+        │   │   ├── Ast.java                语法树
+        │   │   └── Parser.java             LaTeX 子集文法（递归下降）
         │   ├── box/
-        │   │   └── Box.java + 子类   布局中间表示
+        │   │   └── <type>Box.java          布局中间表示
         │   ├── layout/
-        │   │   ├── Layout.java      排版
-        │   │   └── LayoutCache.java 布局缓存
+        │   │   ├── Layout.java             排版
+        │   │   └── LayoutCache.java        布局缓存
         │   └── render/
-        │       ├── Renderer.java    布局树遍历
-        │       ├── VectorSink.java  矢量绘制接口
-        │       ├── SvgRenderer.java SVG 后端
-        │       ├── SvgPath.java     SVG path 解析
-        │       ├── RasterSink.java  光栅后端
-        │       ├── GlyphMask.java   字形覆盖率掩码
-        │       ├── MaskCache.java   字形覆盖率缓存
-        │       ├── GlyphPaths.java  字形路径缓存
-        │       ├── PathSink.java    路径接收接口
-        │       ├── Raster.java      ARGB 位图
-        │       └── Png.java         PNG 编码
+        │       ├── Renderer.java           布局树遍历
+        │       ├── VectorSink.java         矢量绘制接口
+        │       ├── SvgRenderer.java        SVG 后端
+        │       ├── SvgPath.java            SVG path 解析
+        │       ├── RasterSink.java         光栅后端
+        │       ├── GlyphMask.java          字形覆盖率掩码
+        │       ├── MaskCache.java          字形覆盖率缓存
+        │       ├── GlyphPaths.java         字形路径缓存
+        │       ├── PathSink.java           路径接收接口
+        │       ├── Raster.java             ARGB 位图
+        │       └── Png.java                PNG 编码
         └── config/
-            ├── TexonOptions.java    数值 / 容量 / 开关
-            ├── SymbolTable.java     符号 / 命令表
-            ├── SpacingTable.java    数学分类 + 间距
-            ├── AccentTable.java     重音表
-            ├── AccentCompat.java    重音兼容间距
-            ├── FamilyTable.java     字体族映射
-            ├── DelimTable.java      定界符拉伸表
-            └── ColorTable.java      颜色表
+            ├── TexonOptions.java           数值 / 容量 / 开关
+            ├── SymbolTable.java            符号 / 命令表
+            ├── SpacingTable.java           数学分类 + 间距
+            ├── AccentTable.java            重音表
+            ├── AccentCompat.java           重音兼容间距
+            ├── FamilyTable.java            字体族映射
+            ├── DelimTable.java             定界符拉伸表
+            └── ColorTable.java             颜色表
 ```
-
-`java/` 是源码根：包分为 `texon.latex.engine.core.*`（引擎）与 `texon.latex.engine.config.*`（配置）。`assets/` 是构建好的运行时数据，已随仓库预置。
 
 ---
 
@@ -210,7 +208,7 @@ Texon texon = Texon.load(Assets.dir(new File("assets/fonts")), "metrics", "outli
 | `glyphPathsCapacity` | `4096` | 字形路径缓存条目上限 |
 | `maskCacheCapacity` | `4096` | 字形覆盖率缓存条目上限 |
 | `blobBudget` | `8L << 20` | 轮廓分片解压后允许驻留的内存预算（字节） |
-| `pngLevel` | `6` | PNG 压缩级别，见 `java.util.zip.Deflater` |
+| `pngLevel` | `6` | PNG 压缩级别 |
 | `svgPrecision` | `3` | SVG 坐标小数位精度（`0` = 仅整数） |
 | `svgIdPrefix` | `"g"` | SVG 字形 path 的 id 前缀（多图内联时避免冲突） |
 | `rasterSupersample` | `2` | 每像素超采样倍率（越大越平滑越慢） |
@@ -291,7 +289,7 @@ Texon t2 = shared.newTexon(Assets.dir(new File("assets/fonts")), "metrics", b);
 - 共享 `GlyphOutlines`，两个实例只解压一份轮廓；每个实例仍持有自己的 `blobBudget` 与配置。
 - ⚠️ `FontMetrics` **不可共享**：符号 / 间距 / 重音 / 族表是在装载时 `Tables.install` 写进 `TexonContext` 的，跨实例共享会导致配置错乱。
 - `Texon.load(...)` 语义不变（各自建轮廓）；共享是 **opt-in**。
-- `TexonAssets.addFamily(...)` 可向共享轮廓追加族（如无衬线 CJK 覆盖族）。
+- `TexonAssets.addFamily(...)` 可向共享轮廓追加族。
 
 ---
 
@@ -312,7 +310,7 @@ texon.prefetchAsync(source, executor);   // 异步版
 
 | 方法 | 返回 | 说明 |
 |---|---|---|
-| `String svg(latex, pxPerEm)` | `String` | 自包含 `<svg>` 文本，内嵌字形路径 |
+| `String svg(latex, pxPerEm)` | `String` | 自包含 `<svg>` 文本 |
 | `Raster raster(latex, pxPerEm, bg)` | `Raster` | `{width, height, int[] pixels}`，ARGB8888 |
 | `byte[] png(latex, pxPerEm[, bg])` | `byte[]` | PNG 编码字节 |
 | `Raster render(latex, pxPerEm, bg)` | `Raster` | 复用上一帧 sink（实时） |
@@ -346,7 +344,7 @@ body = "TXM1" | unitsPerEm i32 | asc i32 | desc i32 | lineGap i32
        | constCount i32 | consts[]{ keyLen i16, key, value i32 }
        | glyphCount i32 | cp[] i32 | w[] i32 | h/d/ic/il/ta/it/ib[] i16
        | chains[] | hchains[] | asms[]          （仅 CORE 分片）
-       | tablesLen i32 | tables[]                （仅 CORE 分片，TXTB 表段）
+       | tablesLen i32 | tables[]               （仅 CORE 分片，TXTB 表段）
 ```
 
 ### 轮廓分片 `TXO1`
